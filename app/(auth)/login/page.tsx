@@ -1,16 +1,52 @@
-import { Metadata } from "next";
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/header";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-export const metadata: Metadata = {
-  title: "Login - Chatty",
-  description: "Login to your Chatty account",
-};
+import { toast } from "sonner";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      email: formData.get('email'),
+      password: formData.get('password'),
+    };
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message);
+      }
+
+      toast.success("Login successful!");
+      router.push('/chat');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to login');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <Header />
@@ -25,16 +61,12 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label 
-                  htmlFor="email" 
-                  className="text-sm font-medium"
-                >
-                  Email
-                </Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="name@example.com"
                   className="mt-2"
@@ -43,12 +75,7 @@ export default function LoginPage() {
               </div>
               <div>
                 <div className="flex items-center justify-between">
-                  <Label 
-                    htmlFor="password"
-                    className="text-sm font-medium"
-                  >
-                    Password
-                  </Label>
+                  <Label htmlFor="password">Password</Label>
                   <Link 
                     href="/forgot-password" 
                     className="text-sm text-muted-foreground hover:text-primary"
@@ -58,6 +85,7 @@ export default function LoginPage() {
                 </div>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
                   className="mt-2"
@@ -65,20 +93,22 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button className="w-full mt-6 bg-black text-white hover:bg-black/90" size="lg">
-                Login
+              <Button 
+                type="submit"
+                className="w-full mt-6 bg-black text-white hover:bg-black/90" 
+                size="lg"
+                disabled={loading}
+              >
+                {loading ? 'Logging in...' : 'Login'}
               </Button>
 
               <div className="text-sm text-muted-foreground text-center mt-6">
                 Don't have an account?{" "}
-                <Link 
-                  href="/signup" 
-                  className="text-black hover:text-black/80"
-                >
+                <Link href="/signup" className="text-black hover:text-black/80">
                   Sign up
                 </Link>
               </div>
-            </div>
+            </form>
           </div>
         </div>
 
