@@ -13,11 +13,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const response = await fetch(`${API_URL}/api/verify-email?token=${token}`, {
+    const response = await fetch(`${API_URL}/api/auth/verify-email?token=${token}`, {
       method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
     });
 
-    const data = await response.json();
+    // Get raw response text first
+    const responseText = await response.text();
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse API response as JSON:', parseError);
+      return NextResponse.json(
+        { 
+          message: 'Invalid response from server',
+          details: process.env.NODE_ENV === 'development' ? responseText : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
       return NextResponse.json(
@@ -30,7 +48,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Email verification error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { 
+        message: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
+      },
       { status: 500 }
     );
   }
