@@ -4,14 +4,14 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const authToken = request.cookies.get('auth_token');
 
-  // Check if the user is trying to access protected routes
+  // Protected routes that require authentication
   if (request.nextUrl.pathname.startsWith('/chat')) {
     if (!authToken) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
-  // Check if the user is trying to access auth routes while logged in
+  // Public routes that should not be accessible when authenticated
   if (
     (request.nextUrl.pathname.startsWith('/login') ||
       request.nextUrl.pathname.startsWith('/signup')) &&
