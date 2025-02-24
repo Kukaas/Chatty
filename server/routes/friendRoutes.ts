@@ -13,9 +13,9 @@ const router = Router();
 router.use(authenticateToken);
 
 // Friend routes
-router.post('/request', sendFriendRequest as any);
-router.post('/respond', respondToFriendRequest as any);
-router.get('/list', getFriends as any);
-router.get('/requests', getFriendRequests as any);
+router.get('/list', getFriends);
+router.get('/requests', getFriendRequests);
+router.post('/request', sendFriendRequest);
+router.post('/respond', respondToFriendRequest);
 
 export default router; 

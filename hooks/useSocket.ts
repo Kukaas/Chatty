@@ -1,19 +1,43 @@
-import { useEffect, useRef } from 'react';
+import { getCurrentUser } from '@/utils/auth';
+import { useEffect, useRef, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
 interface ChatMessage {
-  roomId: string;
   content: string;
   sender: string;
+  recipient: string;
+  timestamp?: Date;
 }
 
 export function useSocket() {
   const socket = useRef<Socket>();
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    socket.current = io(SOCKET_URL);
+    const initSocket = async () => {
+      try {
+        const user = await getCurrentUser();
+        if (!user) return;
+
+        socket.current = io(SOCKET_URL);
+
+        socket.current.on('connect', () => {
+          setIsConnected(true);
+          // Identify the user to the server with actual user ID
+          socket.current?.emit('identify', user._id);
+        });
+
+        socket.current.on('disconnect', () => {
+          setIsConnected(false);
+        });
+      } catch (error) {
+        console.error('Socket initialization error:', error);
+      }
+    };
+
+    initSocket();
 
     return () => {
       if (socket.current) {
@@ -42,6 +66,7 @@ export function useSocket() {
 
   return {
     socket: socket.current,
+    isConnected,
     joinRoom,
     sendMessage,
     onReceiveMessage,

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Friend } from '../models/Friend';
 import { User } from '../models/User';
+import mongoose from 'mongoose';
 
 interface AuthRequest extends Request {
   user?: {
@@ -11,11 +12,18 @@ interface AuthRequest extends Request {
 
 export const sendFriendRequest = async (req: AuthRequest, res: Response) => {
   try {
-    const { userId } = req.body; // ID of user to send request to
-    const requesterId = req.user?.id; // Current user's ID
+    const { userId } = req.body;
+    const requesterId = req.user?.id;
+    console.log('Friend request from:', requesterId, 'to:', userId);
 
     if (!requesterId) {
       return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // Prevent self-friending
+    if (requesterId === userId) {
+      console.log('Attempted self-friend request');
+      return res.status(400).json({ message: 'Cannot send friend request to yourself' });
     }
 
     // Check if recipient user exists
@@ -82,17 +90,33 @@ export const respondToFriendRequest = async (req: AuthRequest, res: Response) =>
 export const getFriends = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
+    console.log('Getting friends for user:', userId);
 
     if (!userId) {
+      console.log('No user ID found in request');
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
     const friends = await Friend.find({
       $or: [{ requester: userId }, { recipient: userId }],
       status: 'accepted',
-    }).populate('requester recipient', 'name email avatar');
+    })
+    .populate('requester recipient', 'name email avatar')
+    .lean();
 
-    res.json(friends);
+    console.log('Found friends:', JSON.stringify(friends, null, 2));
+    
+    // Filter out any self-referential friendships
+    const validFriends = friends.filter(friend => {
+      const isSelfFriend = friend.requester._id.toString() === friend.recipient._id.toString();
+      if (isSelfFriend) {
+        console.log('Found self-friend, filtering out:', friend);
+      }
+      return !isSelfFriend;
+    });
+
+    console.log('Filtered friends:', JSON.stringify(validFriends, null, 2));
+    res.json(validFriends);
   } catch (error) {
     console.error('Get friends error:', error);
     res.status(500).json({ message: 'Error getting friends' });

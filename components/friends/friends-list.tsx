@@ -61,7 +61,7 @@ export function FriendsList() {
                 <Avatar>
                   <AvatarImage src={friend.recipient.avatar || friend.requester.avatar} />
                   <AvatarFallback>
-                    {(friend.recipient.name || friend.requester.name).charAt(0)}
+                    {(friend.recipient.name || friend.requester.name)?.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
                 <div>

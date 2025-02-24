@@ -3,7 +3,7 @@ import { Schema, model, models, Document } from 'mongoose';
 interface IMessage extends Document {
   content: string;
   sender: Schema.Types.ObjectId;
-  roomId: string;
+  recipient: Schema.Types.ObjectId;
   createdAt: Date;
 }
 
@@ -17,8 +17,9 @@ const messageSchema = new Schema<IMessage>({
     ref: 'User',
     required: true,
   },
-  roomId: {
-    type: String,
+  recipient: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
     required: true,
   },
   createdAt: {

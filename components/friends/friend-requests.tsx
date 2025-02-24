@@ -74,7 +74,7 @@ export function FriendRequests() {
               <CardHeader className="flex flex-row items-center gap-4">
                 <Avatar>
                   <AvatarImage src={request.requester.avatar} />
-                  <AvatarFallback>{request.requester.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback>{request.requester.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
                   <CardTitle>{request.requester.name}</CardTitle>
