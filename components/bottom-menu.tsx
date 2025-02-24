@@ -5,7 +5,7 @@ import { MessageSquare, Users, LogOut, UserPlus } from 'lucide-react';
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +18,28 @@ export function BottomMenu({ onNavigate }: BottomMenuProps) {
   const pathname = usePathname();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  // Fetch pending requests count
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      try {
+        const response = await fetch('/api/friends?type=requests');
+        if (!response.ok) throw new Error('Failed to fetch requests');
+        const data = await response.json();
+        setPendingRequests(data.length);
+      } catch (error) {
+        console.error('Error fetching requests:', error);
+      }
+    };
+
+    fetchPendingRequests();
+    
+    // Optional: Set up an interval to periodically check for new requests
+    const interval = setInterval(fetchPendingRequests, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -70,12 +92,19 @@ export function BottomMenu({ onNavigate }: BottomMenuProps) {
           href="/connections"
           onClick={onNavigate}
           className={cn(
-            "flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50",
+            "flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50 relative",
             pathname === '/connections' && "text-black",
             pathname !== '/connections' && "text-neutral-400"
           )}
         >
-          <Users className="h-5 w-5" />
+          <div className="relative">
+            <Users className="h-5 w-5" />
+            {pendingRequests > 0 && (
+              <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                {pendingRequests}
+              </div>
+            )}
+          </div>
           <span className="text-xs">Friends</span>
         </Link>
 
