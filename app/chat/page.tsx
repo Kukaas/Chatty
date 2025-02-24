@@ -5,10 +5,12 @@ import { useSocket } from '@/hooks/useSocket';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from 'lucide-react';
+import { Send, MessageSquare, Users, LogOut, Menu } from 'lucide-react';
 import { Header } from "@/components/header";
 import { toast } from "sonner";
 import { getCurrentUser } from '@/utils/auth';
+import { useRouter, usePathname } from 'next/navigation';
+import { BottomMenu } from "@/components/bottom-menu";
 
 interface Friend {
   _id: string;
@@ -69,6 +71,9 @@ export default function ChatPage() {
   const { sendMessage, onReceiveMessage, socket } = useSocket();
   const [friendDetails, setFriendDetails] = useState<{ [key: string]: any }>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const [isSidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     fetchFriends();
@@ -252,106 +257,151 @@ export default function ChatPage() {
   }, []);
 
   return (
-    <>
-      <Header />
-      <div className="flex h-screen bg-gray-50 pt-16">
-        {/* Sidebar with Friends List */}
-        <div className="w-64 bg-white border-r">
-          <div className="p-4">
-            <h2 className="text-xl font-semibold">Chats</h2>
-          </div>
-          <div className="overflow-y-auto">
-            {friends.map((friend) => (
-              <button
-                key={friend._id}
-                onClick={() => handleSelectFriend(friend)}
-                className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors ${
-                  selectedFriend?._id === friend._id ? 'bg-gray-100' : ''
-                }`}
-              >
-                <Avatar>
-                  <AvatarImage src={friendDetails[friend._id]?.avatar} />
-                  <AvatarFallback>{friendDetails[friend._id]?.name?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                  <p className="font-medium">{friendDetails[friend._id]?.name}</p>
-                  <p className="text-sm text-muted-foreground">{friendDetails[friend._id]?.email}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+    <div className="flex h-screen bg-white">
+      {/* Sidebar - Hidden on mobile by default */}
+      <div className={`
+        fixed inset-y-0 left-0 z-20 w-72 bg-white transform transition-transform duration-200 ease-in-out
+        border-r border-neutral-100 flex flex-col
+        md:relative md:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Messages Header */}
+        <div className="p-4 border-b border-neutral-100">
+          <h2 className="text-lg font-medium">Messages</h2>
         </div>
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {selectedFriend ? (
-            <>
-              {/* Chat Header */}
-              <div className="h-16 border-b bg-white px-6 flex items-center">
-                <div className="flex items-center space-x-4">
-                  <Avatar>
-                    <AvatarImage src={friendDetails[selectedFriend._id]?.avatar} />
-                    <AvatarFallback>
-                      {friendDetails[selectedFriend._id]?.name?.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-semibold">{friendDetails[selectedFriend._id]?.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {friendDetails[selectedFriend._id]?.email}
-                    </p>
-                  </div>
+        {/* Friends List - with flex-1 to push menu to bottom */}
+        <div className="flex-1 overflow-y-auto">
+          {friends.map((friend) => (
+            <button
+              key={friend._id}
+              onClick={() => {
+                handleSelectFriend(friend);
+                // Close sidebar on mobile after selecting a friend
+                if (window.innerWidth < 768) {
+                  setSidebarOpen(false);
+                }
+              }}
+              className={`w-full p-3 flex items-center gap-3 hover:bg-neutral-50 transition-colors ${
+                selectedFriend?._id === friend._id ? 'bg-neutral-50' : ''
+              }`}
+            >
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={friendDetails[friend._id]?.avatar} />
+                <AvatarFallback>{friendDetails[friend._id]?.name?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="text-left truncate">
+                <p className="text-sm font-medium truncate">{friendDetails[friend._id]?.name}</p>
+                <p className="text-xs text-neutral-500 truncate">{friendDetails[friend._id]?.email}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Replace menu with component */}
+        <BottomMenu />
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-white w-full">
+        {selectedFriend ? (
+          <>
+            {/* Chat Header */}
+            <div className="h-14 border-b border-neutral-100 px-4 flex items-center">
+              {/* Menu button for mobile */}
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                className="mr-3 md:hidden"
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={friendDetails[selectedFriend._id]?.avatar} />
+                  <AvatarFallback>
+                    {friendDetails[selectedFriend._id]?.name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-sm font-medium">{friendDetails[selectedFriend._id]?.name}</h3>
                 </div>
               </div>
+            </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((msg, index) => (
-                  <div
-                    key={msg._id || index}
-                    className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-[70%] rounded-lg p-3 ${
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3">
+              {messages.map((msg, index) => (
+                <div
+                  key={msg._id || index}
+                  className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div 
+                    className={`max-w-[80%] md:max-w-[65%] rounded-2xl px-4 py-2 text-sm ${
                       msg.isOwn 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-muted'
-                    }`}>
-                      <div className="break-words">{msg.content}</div>
-                      <div className="text-xs mt-1 opacity-70">
-                        {msg.status === 'sending' && '⏳ Sending...'}
-                        {msg.status === 'error' && '❌ Failed to send'}
-                        {msg.status === 'sent' && '✓ Sent'}
-                        {!msg.status && formatMessageDate(msg.timestamp)}
-                      </div>
+                        ? 'bg-black text-white' 
+                        : 'bg-neutral-100'
+                    }`}
+                  >
+                    <div>{msg.content}</div>
+                    <div className="text-[10px] mt-1 opacity-70">
+                      {msg.status === 'sending' && '⏳'}
+                      {msg.status === 'error' && '❌'}
+                      {msg.status === 'sent' && '✓'}
+                      {!msg.status && formatMessageDate(msg.timestamp)}
                     </div>
                   </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Message Input */}
-              <form
-                onSubmit={handleSendMessage}
-                className="border-t bg-white p-4 flex items-center space-x-2"
-              >
-                <Input
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1"
-                />
-                <Button type="submit" size="icon">
-                  <Send className="h-4 w-4" />
-                </Button>
-              </form>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              Select a friend to start chatting
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
             </div>
-          )}
-        </div>
+
+            {/* Message Input */}
+            <form
+              onSubmit={handleSendMessage}
+              className="border-t border-neutral-100 px-3 md:px-6 py-3 md:py-4 flex items-center gap-2 md:gap-3"
+            >
+              <Input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type a message..."
+                className="flex-1 h-10 md:h-11 px-3 md:px-4 bg-neutral-100 border-0 focus-visible:ring-1 focus-visible:ring-black focus-visible:ring-offset-0 placeholder:text-neutral-400 text-sm"
+              />
+              <Button 
+                type="submit" 
+                size="icon"
+                className="h-10 w-10 md:h-11 md:w-11 bg-black text-white hover:bg-neutral-800 transition-colors"
+                disabled={!message.trim()}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-neutral-500 text-sm p-4 text-center">
+            {/* Show different messages for mobile/desktop */}
+            <span className="md:hidden">
+              {isSidebarOpen ? 'Select a conversation' : (
+                <button onClick={() => setSidebarOpen(true)} className="flex items-center gap-2">
+                  <Menu className="h-5 w-5" />
+                  Open conversations
+                </button>
+              )}
+            </span>
+            <span className="hidden md:block">
+              Select a conversation to start messaging
+            </span>
+          </div>
+        )}
       </div>
-    </>
+
+      {/* Overlay for mobile when sidebar is open */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+    </div>
   );
 } 

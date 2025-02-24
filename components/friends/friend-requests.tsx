@@ -63,45 +63,37 @@ export function FriendRequests() {
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Friend Requests</h2>
+    <div className="space-y-1">
       {requests.length === 0 ? (
-        <p className="text-muted-foreground">No pending friend requests</p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {requests.map((request) => (
-            <Card key={request._id}>
-              <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar>
-                  <AvatarImage src={request.requester.avatar} />
-                  <AvatarFallback>{request.requester.name?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle>{request.requester.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{request.requester.email}</p>
-                </div>
-              </CardHeader>
-              <CardContent className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleResponse(request._id, 'accepted')}
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Accept
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => handleResponse(request._id, 'rejected')}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Decline
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="px-3 py-2 text-sm text-neutral-400">
+          No pending requests
         </div>
+      ) : (
+        requests.map((request) => (
+          <div key={request._id} className="px-3 py-1.5 hover:bg-neutral-50">
+            <div className="flex items-center gap-2">
+              <Avatar className="h-8 w-8 shrink-0">
+                <AvatarImage src={request.requester.avatar} />
+                <AvatarFallback>
+                  {request.requester.name?.charAt(0) || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm truncate">
+                  {request.requester.name || 'Unknown'}
+                </p>
+              </div>
+              <div className="flex gap-1">
+                <button 
+                  onClick={() => handleResponse(request._id, 'accepted')} 
+                  className="text-xs bg-black text-white px-3 py-1.5 rounded-full hover:bg-neutral-800 transition-colors"
+                >
+                  Accept
+                </button>
+              </div>
+            </div>
+          </div>
+        ))
       )}
     </div>
   );

@@ -44,42 +44,45 @@ export function FriendsList() {
     }
   };
 
+  const getFriendDetails = (friend: Friend) => {
+    if (!friend) return null;
+    return friend.requester || friend.recipient;
+  };
+
   if (loading) {
     return <div>Loading friends...</div>;
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Friends</h2>
+    <div className="space-y-1">
       {friends.length === 0 ? (
-        <p className="text-muted-foreground">No friends yet. Add some friends to start chatting!</p>
+        <div className="px-3 py-2 text-sm text-neutral-400">
+          No friends yet
+        </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {friends.map((friend) => (
-            <Card key={friend._id}>
-              <CardHeader className="flex flex-row items-center gap-4">
-                <Avatar>
-                  <AvatarImage src={friend.recipient.avatar || friend.requester.avatar} />
+        friends.map((friend) => {
+          const details = getFriendDetails(friend);
+          return (
+            <div key={friend._id} className="px-3 py-1.5 hover:bg-neutral-50">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={details?.avatar} />
                   <AvatarFallback>
-                    {(friend.recipient.name || friend.requester.name)?.charAt(0)}
+                    {details?.name?.charAt(0) || '?'}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <CardTitle>{friend.recipient.name || friend.requester.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    {friend.recipient.email || friend.requester.email}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">
+                    {details?.name || 'Unknown'}
+                  </p>
+                  <p className="text-xs text-neutral-400 truncate">
+                    {details?.email}
                   </p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full" onClick={() => {}}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Message
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </div>
+            </div>
+          );
+        })
       )}
     </div>
   );
