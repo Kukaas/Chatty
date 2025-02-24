@@ -17,14 +17,17 @@ const httpServer = createServer(app);
 // Filter out undefined values from allowed origins
 const allowedOrigins = [
   process.env.NEXT_PUBLIC_APP_URL,
-  'https://your-app-name.vercel.app',
-  // Add any other domains you need
+  process.env.NEXT_PUBLIC_SOCKET_URL,
+  'https://your-app-name.vercel.app', // Replace with your actual Vercel domain
+  // In production, also allow the deployment URL
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
 ].filter((origin): origin is string => !!origin);
 
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
-    methods: ['GET', 'POST']
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 
