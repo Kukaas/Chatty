@@ -2,8 +2,11 @@ import { getCurrentUser } from '@/utils/auth';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
+// Add isomorphic check at the top
+const isBrowser = typeof window !== 'undefined';
+
 const getSocketUrl = () => {
-  if (typeof window === 'undefined') return ''; // Return empty string during SSR
+  if (!isBrowser) return ''; // Return empty string during SSR
 
   if (process.env.NODE_ENV === 'production') {
     // In production, use the current origin
@@ -42,6 +45,13 @@ interface TypingStatus {
 }
 
 export function useSocket() {
+  // Add SSR safety check
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Map<string, TypingUser>>(new Map());
@@ -72,6 +82,8 @@ export function useSocket() {
   }, []);
 
   useEffect(() => {
+    if (!isClient) return; // Don't initialize socket during SSR
+
     const initSocket = async () => {
       try {
         const user = await getCurrentUser();
@@ -84,7 +96,7 @@ export function useSocket() {
         });
 
         const socketUrl = getSocketUrl();
-        if (!socketUrl) return; // Don't initialize socket during SSR
+        if (!socketUrl) return;
 
         socket.current = io(socketUrl, {
           withCredentials: true
@@ -136,16 +148,29 @@ export function useSocket() {
       }
     };
 
-    if (typeof window !== 'undefined') {
-      initSocket();
-    }
+    initSocket();
 
     return () => {
       if (socket.current) {
         socket.current.disconnect();
       }
     };
-  }, []);
+  }, [isClient]); // Add isClient to dependencies
+
+  // Return empty values during SSR
+  if (!isClient) {
+    return {
+      socket: null,
+      isConnected: false,
+      onlineUsers: new Set(),
+      typingUsers: new Map(),
+      joinRoom: () => {},
+      sendMessage: () => {},
+      onReceiveMessage: () => () => {},
+      startTyping: () => {},
+      stopTyping: () => {},
+    };
+  }
 
   return {
     socket: socket.current,
