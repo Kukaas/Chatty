@@ -11,6 +11,7 @@ import { getCurrentUser } from '@/utils/auth';
 import { useParams, useRouter } from 'next/navigation';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { OnlineStatus } from '@/components/online-status';
+import { TypingIndicator } from "@/components/chat/typing-indicator";
 
 interface Message {
   _id?: string;
@@ -38,6 +39,10 @@ interface Friend {
   };
 }
 
+interface Params {
+  id: string;
+}
+
 // Add this helper function at the top of the file, outside the component
 function formatMessageTime(timestamp: string | Date): string {
   const date = new Date(timestamp);
@@ -49,7 +54,7 @@ function formatMessageTime(timestamp: string | Date): string {
 }
 
 export default function ChatRoom() {
-  const params = useParams();
+  const params = useParams() as Params;
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -57,8 +62,9 @@ export default function ChatRoom() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [friend, setFriend] = useState<Friend | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { socket, onlineUsers, sendMessage, onReceiveMessage } = useSocket();
+  const { socket, onlineUsers, sendMessage, onReceiveMessage, typingUsers, startTyping, stopTyping } = useSocket();
   const { setSidebarOpen } = useSidebar();
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -164,6 +170,37 @@ export default function ChatRoom() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+
+    // Handle typing indicator
+    if (value && params.id) {
+      startTyping(params.id);
+      
+      // Clear existing timeout
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+      
+      // Set new timeout
+      const timeout = setTimeout(() => {
+        stopTyping(params.id);
+      }, 1000);
+      
+      setTypingTimeout(timeout);
+    }
+  };
+
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+    };
+  }, [typingTimeout]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -367,6 +404,13 @@ export default function ChatRoom() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing Indicator */}
+      {Array.from(typingUsers.values()).map((user) => (
+        <div key={user._id} className="px-4 py-2">
+          <TypingIndicator typingUser={user} />
+        </div>
+      ))}
+
       {/* Message Input */}
       <div className="p-4 border-t border-neutral-100 bg-white">
         <form
@@ -375,7 +419,7 @@ export default function ChatRoom() {
         >
           <Input
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Type a message..."
             className="flex-1 h-12 px-4 bg-neutral-100 border-0 focus-visible:ring-1 focus-visible:ring-black focus-visible:ring-offset-0 placeholder:text-neutral-400"
           />

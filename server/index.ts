@@ -72,6 +72,17 @@ interface ChatMessage {
 // Add at the top with other imports
 const onlineUsers = new Map<string, string>(); // userId -> socketId
 
+interface TypingUser {
+  _id: string;
+  name: string;
+  avatar: string;
+}
+
+interface TypingData {
+  recipientId: string;
+  user: TypingUser;
+}
+
 // Update the Socket.IO Connection handling
 io.on('connection', (socket: Socket) => {
   console.log('A user connected');
@@ -110,6 +121,22 @@ io.on('connection', (socket: Socket) => {
       }
     }
     console.log('User disconnected');
+  });
+
+  socket.on('typing_start', (data: TypingData) => {
+    io.to(data.recipientId).emit('typing_status', { 
+      userId: data.user._id,
+      user: data.user,
+      isTyping: true 
+    });
+  });
+
+  socket.on('typing_stop', (data: TypingData) => {
+    io.to(data.recipientId).emit('typing_status', { 
+      userId: data.user._id,
+      user: data.user,
+      isTyping: false 
+    });
   });
 });
 

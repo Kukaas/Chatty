@@ -19,9 +19,23 @@ interface OnlineStatus {
   status: 'online' | 'offline';
 }
 
+interface TypingUser {
+  _id: string;
+  name: string;
+  avatar: string;
+}
+
+interface TypingStatus {
+  userId: string;
+  user: TypingUser;
+  isTyping: boolean;
+}
+
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [typingUsers, setTypingUsers] = useState<Map<string, TypingUser>>(new Map());
+  const [currentUser, setCurrentUser] = useState<TypingUser | null>(null);
   const socket = useRef<Socket | null>(null);
 
   // Memoize the socket event handlers
@@ -53,6 +67,12 @@ export function useSocket() {
         const user = await getCurrentUser();
         if (!user) return;
 
+        setCurrentUser({
+          _id: user._id,
+          name: user.name,
+          avatar: user.avatar
+        });
+
         socket.current = io(SOCKET_URL);
 
         socket.current.on('connect', () => {
@@ -83,6 +103,19 @@ export function useSocket() {
           const onlineUserIds = await response.json();
           setOnlineUsers(new Set(onlineUserIds));
         }
+
+        // Handle typing status
+        socket.current.on('typing_status', ({ userId, user, isTyping }: TypingStatus) => {
+          setTypingUsers(prev => {
+            const updated = new Map(prev);
+            if (isTyping) {
+              updated.set(userId, user);
+            } else {
+              updated.delete(userId);
+            }
+            return updated;
+          });
+        });
       } catch (error) {
         console.error('Socket initialization error:', error);
       }
@@ -101,8 +134,23 @@ export function useSocket() {
     socket: socket.current,
     isConnected,
     onlineUsers,
+    typingUsers,
     joinRoom,
     sendMessage,
     onReceiveMessage,
+    startTyping: (recipientId: string) => {
+      if (!socket.current || !currentUser) return;
+      socket.current.emit('typing_start', { 
+        recipientId, 
+        user: currentUser
+      });
+    },
+    stopTyping: (recipientId: string) => {
+      if (!socket.current || !currentUser) return;
+      socket.current.emit('typing_stop', { 
+        recipientId,
+        user: currentUser
+      });
+    },
   };
 } 
