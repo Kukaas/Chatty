@@ -2,7 +2,11 @@ import { getCurrentUser } from '@/utils/auth';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL;
+
+if (!SOCKET_URL) {
+  throw new Error('SOCKET_URL is not defined');
+}
 
 interface ChatMessage {
   _id?: string;
@@ -73,7 +77,9 @@ export function useSocket() {
           avatar: user.avatar
         });
 
-        socket.current = io(SOCKET_URL);
+        socket.current = io(SOCKET_URL, {
+          withCredentials: true
+        });
 
         socket.current.on('connect', () => {
           setIsConnected(true);

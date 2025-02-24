@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
     console.error('Signup error:', error);
     return NextResponse.json(
       { 
-        message: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: process.env.NODE_ENV === 'development' 
+          ? error instanceof Error ? error.message : 'Internal server error'
+          : 'Something went wrong'
       },
       { status: 500 }
     );
