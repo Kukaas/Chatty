@@ -1,13 +1,19 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { MessageSquare, Users, LogOut } from 'lucide-react';
+import { MessageSquare, Users, LogOut, UserPlus } from 'lucide-react';
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useState } from 'react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
-export function BottomMenu() {
+interface BottomMenuProps {
+  onNavigate?: () => void;
+}
+
+export function BottomMenu({ onNavigate }: BottomMenuProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -33,42 +39,53 @@ export function BottomMenu() {
 
   return (
     <>
-      <div className="border-t border-neutral-100 p-4">
-        <div className="flex items-center justify-between">
-          <button 
-            onClick={() => router.push('/chat')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50 transition-colors ${
-              pathname === '/chat' ? 'bg-neutral-50' : ''
-            }`}
-          >
-            <div className="h-8 w-8 flex items-center justify-center rounded-full bg-neutral-100">
-              <MessageSquare className="h-4 w-4" />
-            </div>
-            <span className="text-xs font-medium">Chats</span>
-          </button>
+      <div className="h-16 border-t border-neutral-100 grid grid-cols-4 items-center px-2">
+        <Link
+          href="/chat"
+          onClick={onNavigate}
+          className={cn(
+            "flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50",
+            pathname.startsWith('/chat') && "text-black",
+            !pathname.startsWith('/chat') && "text-neutral-400"
+          )}
+        >
+          <MessageSquare className="h-5 w-5" />
+          <span className="text-xs">Chat</span>
+        </Link>
+        
+        <Link
+          href="/friends"
+          onClick={onNavigate}
+          className={cn(
+            "flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50",
+            pathname === '/friends' && "text-black",
+            pathname !== '/friends' && "text-neutral-400"
+          )}
+        >
+          <UserPlus className="h-5 w-5" />
+          <span className="text-xs">Add</span>
+        </Link>
 
-          <button 
-            onClick={() => router.push('/friends')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50 transition-colors ${
-              pathname === '/friends' ? 'bg-neutral-50' : ''
-            }`}
-          >
-            <div className="h-8 w-8 flex items-center justify-center rounded-full bg-neutral-100">
-              <Users className="h-4 w-4" />
-            </div>
-            <span className="text-xs font-medium">Friends</span>
-          </button>
+        <Link
+          href="/connections"
+          onClick={onNavigate}
+          className={cn(
+            "flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50",
+            pathname === '/connections' && "text-black",
+            pathname !== '/connections' && "text-neutral-400"
+          )}
+        >
+          <Users className="h-5 w-5" />
+          <span className="text-xs">Friends</span>
+        </Link>
 
-          <button 
-            onClick={() => setShowLogoutDialog(true)}
-            className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50 transition-colors"
-          >
-            <div className="h-8 w-8 flex items-center justify-center rounded-full bg-neutral-100">
-              <LogOut className="h-4 w-4 text-red-500" />
-            </div>
-            <span className="text-xs font-medium text-red-500">Logout</span>
-          </button>
-        </div>
+        <button
+          onClick={() => setShowLogoutDialog(true)}
+          className="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-neutral-50 text-neutral-400"
+        >
+          <LogOut className="h-5 w-5" />
+          <span className="text-xs">Logout</span>
+        </button>
       </div>
 
       <Dialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>

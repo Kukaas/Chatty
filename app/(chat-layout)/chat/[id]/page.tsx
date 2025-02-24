@@ -9,6 +9,7 @@ import { Send, Menu } from 'lucide-react';
 import { toast } from "sonner";
 import { getCurrentUser } from '@/utils/auth';
 import { useParams, useRouter } from 'next/navigation';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 interface Message {
   _id?: string;
@@ -39,21 +40,20 @@ interface Friend {
 export default function ChatRoom() {
   const params = useParams();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [friend, setFriend] = useState<Friend | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sendMessage, onReceiveMessage, socket } = useSocket();
+  const { setSidebarOpen } = useSidebar();
 
-  // Define fetchUser function at component level
-  const fetchUser = async () => {
-    const user = await getCurrentUser();
-    setCurrentUser(user);
-  };
-
-  // Initial user fetch
   useEffect(() => {
+    const fetchUser = async () => {
+      const user = await getCurrentUser();
+      setCurrentUser(user);
+    };
     fetchUser();
   }, []);
 
@@ -64,22 +64,36 @@ export default function ChatRoom() {
 
   useEffect(() => {
     const fetchFriend = async () => {
+      if (!params?.id || !currentUser) return;
+      
       try {
-        const response = await fetch(`/api/friends/${params.id}`);
-        if (!response.ok) throw new Error('Failed to fetch friend details');
+        setIsLoading(true);
+        const response = await fetch(`/api/friends/${params.id}`, {
+          credentials: 'include', // Include cookies
+        });
+        
         const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch friend details');
+        }
+
+        if (!data) {
+          throw new Error('No friend data received');
+        }
+
         setFriend(data);
       } catch (error) {
         console.error('Failed to load friend:', error);
-        toast.error('Failed to load friend details');
+        toast.error(error instanceof Error ? error.message : 'Failed to load friend details');
         router.push('/chat');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    if (currentUser) {
-      fetchFriend();
-    }
-  }, [params.id, currentUser]);
+    fetchFriend();
+  }, [params?.id, currentUser, router]);
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -96,7 +110,6 @@ export default function ChatRoom() {
     fetchMessages();
   }, [params.id]);
 
-  // Add socket effect for receiving messages
   useEffect(() => {
     if (!socket?.current) return;
 
@@ -133,12 +146,10 @@ export default function ChatRoom() {
     };
   }, [socket?.current, params.id, currentUser?._id]);
 
-  // Add scroll effect for messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Add handleSendMessage function
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !currentUser) return;
@@ -147,26 +158,16 @@ export default function ChatRoom() {
       content: message,
       sender: currentUser._id,
       recipient: params.id as string,
+      timestamp: new Date(),
       status: 'sending',
-      timestamp: new Date().toISOString(),
       isOwn: true
     };
 
-    // Immediately add message to UI
+    // Add message to state immediately
     setMessages(prev => [...prev, newMessage]);
-    
-    // Clear input right away
     setMessage('');
 
     try {
-      // Send through socket
-      sendMessage({
-        content: message,
-        sender: currentUser._id,
-        recipient: params.id as string,
-      });
-
-      // Save to database
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
@@ -199,38 +200,37 @@ export default function ChatRoom() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-neutral-500">Loading...</div>
+      </div>
+    );
+  }
+
+  const friendDetails = getFriendDetails(friend);
+
   return (
     <div className="flex flex-col h-screen">
       {/* Chat Header */}
-      {friend && currentUser && (
-        <div className="h-16 px-4 flex items-center gap-3 border-b border-neutral-100 bg-white/95 backdrop-blur-sm">
-          {/* Mobile menu button */}
-          <button 
-            onClick={() => router.push('/chat')}
-            className="md:hidden hover:bg-neutral-50 p-2 rounded-lg transition-colors"
-          >
-            <Menu className="h-5 w-5 text-neutral-600" />
-          </button>
-
-          {/* Friend details */}
-          <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={getFriendDetails(friend)?.avatar} />
-              <AvatarFallback>
-                {getFriendDetails(friend)?.name?.[0] || '?'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="font-medium leading-none mb-1">
-                {getFriendDetails(friend)?.name}
-              </h3>
-              <p className="text-xs text-neutral-500">
-                {getFriendDetails(friend)?.email}
-              </p>
-            </div>
-          </div>
+      <div className="h-14 sm:h-16 border-b border-neutral-100 px-3 sm:px-6 flex items-center sticky top-0 z-10 bg-white">
+        <button 
+          onClick={(e) => {
+            e.preventDefault();
+            setSidebarOpen(true);
+          }}
+          className="md:hidden p-2 hover:bg-neutral-50 rounded-lg -ml-2"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="flex items-center gap-3 ml-2 sm:ml-0">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={friendDetails?.avatar} />
+            <AvatarFallback>{friendDetails?.name?.[0]}</AvatarFallback>
+          </Avatar>
+          <h1 className="text-base sm:text-lg font-medium">{friendDetails?.name}</h1>
         </div>
-      )}
+      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
@@ -292,7 +292,7 @@ export default function ChatRoom() {
   );
 }
 
-// Add helper function for formatting dates
+// Helper function for formatting dates
 function formatMessageDate(timestamp: string | Date): string {
   const date = new Date(timestamp);
   const now = new Date();
