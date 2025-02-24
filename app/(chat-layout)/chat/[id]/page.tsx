@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getCurrentUser } from '@/utils/auth';
 import { useParams, useRouter } from 'next/navigation';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { OnlineStatus } from '@/components/online-status';
 
 interface Message {
   _id?: string;
@@ -37,6 +38,16 @@ interface Friend {
   };
 }
 
+// Add this helper function at the top of the file, outside the component
+function formatMessageTime(timestamp: string | Date): string {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 export default function ChatRoom() {
   const params = useParams();
   const router = useRouter();
@@ -46,7 +57,7 @@ export default function ChatRoom() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [friend, setFriend] = useState<Friend | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { sendMessage, onReceiveMessage, socket } = useSocket();
+  const { socket, onlineUsers, sendMessage, onReceiveMessage } = useSocket();
   const { setSidebarOpen } = useSidebar();
 
   useEffect(() => {
@@ -110,41 +121,45 @@ export default function ChatRoom() {
     fetchMessages();
   }, [params.id]);
 
+  // Memoize the message handler
+  const handleMessage = useCallback((data: Message) => {
+    if (!currentUser) return;
+
+    const isRelevantMessage = 
+      data.sender === params.id || 
+      data.recipient === params.id;
+
+    if (isRelevantMessage) {
+      setMessages(prev => {
+        // Check if message already exists
+        const exists = prev.some(msg => 
+          (msg._id && msg._id === data._id) || 
+          (msg.content === data.content && 
+           msg.sender === data.sender && 
+           new Date(msg.timestamp).getTime() === new Date(data.timestamp).getTime())
+        );
+        
+        if (exists) return prev;
+
+        return [...prev, {
+          ...data,
+          isOwn: data.sender === currentUser._id,
+          status: 'sent'
+        }];
+      });
+
+      // Scroll to bottom when new message arrives
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [currentUser, params.id]);
+
+  // Set up socket message listener
   useEffect(() => {
-    if (!socket?.current) return;
+    if (!socket) return;
 
-    const handleMessage = (data: Message) => {
-      if (!currentUser) return;
-
-      const isRelevantMessage = 
-        data.sender === params.id || 
-        data.recipient === params.id;
-
-      if (isRelevantMessage) {
-        setMessages(prev => {
-          const exists = prev.some(msg => 
-            msg._id === data._id || 
-            (msg.content === data.content && 
-             msg.sender === data.sender && 
-             new Date(msg.timestamp).getTime() === new Date(data.timestamp).getTime())
-          );
-          
-          if (exists) return prev;
-          return [...prev, {
-            ...data,
-            timestamp: data.timestamp,
-            isOwn: data.sender === currentUser._id
-          }];
-        });
-      }
-    };
-
-    socket.current.on('receive-message', handleMessage);
-    
-    return () => {
-      socket.current?.off('receive-message', handleMessage);
-    };
-  }, [socket?.current, params.id, currentUser?._id]);
+    const cleanup = onReceiveMessage(handleMessage);
+    return cleanup;
+  }, [socket, handleMessage, onReceiveMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -168,6 +183,15 @@ export default function ChatRoom() {
     setMessage('');
 
     try {
+      // Send via socket first for real-time delivery
+      sendMessage({
+        content: message,
+        sender: currentUser._id,
+        recipient: params.id as string,
+        timestamp: new Date()
+      });
+
+      // Then persist to database
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: {
@@ -183,10 +207,12 @@ export default function ChatRoom() {
         throw new Error('Failed to send message');
       }
 
-      // Update message status to sent
+      const savedMessage = await response.json();
+      
+      // Update message status to sent and add server-generated ID
       setMessages(prev => prev.map(msg => 
         msg === newMessage 
-          ? { ...msg, status: 'sent' } 
+          ? { ...msg, status: 'sent', _id: savedMessage._id } 
           : msg
       ));
     } catch (error) {
@@ -288,12 +314,23 @@ export default function ChatRoom() {
         >
           <Menu className="h-5 w-5" />
         </button>
-        <div className="flex items-center gap-3 ml-2 sm:ml-0">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={friendDetails?.avatar} />
-            <AvatarFallback>{friendDetails?.name?.[0]}</AvatarFallback>
-          </Avatar>
-          <h1 className="text-base sm:text-lg font-medium">{friendDetails?.name}</h1>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Avatar className="h-8 w-8 sm:h-10 sm:w-10">
+              <AvatarImage src={friendDetails.avatar} alt={friendDetails.name} />
+              <AvatarFallback>{friendDetails.name[0]}</AvatarFallback>
+            </Avatar>
+            <OnlineStatus 
+              userId={friendDetails._id} 
+              className="absolute bottom-0 right-0 ring-2 ring-white"
+            />
+          </div>
+          <div>
+            <h1 className="text-base sm:text-lg font-medium">{friendDetails.name}</h1>
+            <p className="text-xs text-neutral-500">
+              {onlineUsers.has(friendDetails._id) ? 'Online' : 'Offline'}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -317,13 +354,12 @@ export default function ChatRoom() {
                 {msg.content}
               </div>
               <div className={`
-                text-[10px] mt-1 flex items-center gap-1
+                text-[10px] mt-1
                 ${msg.isOwn ? 'text-neutral-300' : 'text-neutral-500'}
               `}>
-                {msg.status === 'sending' && '⏳'}
-                {msg.status === 'error' && '❌'}
-                {msg.status === 'sent' && '✓'}
-                {!msg.status && formatMessageDate(msg.timestamp)}
+                {msg.status === 'sending' && 'Sending...'}
+                {msg.status === 'error' && 'Failed to send'}
+                {(msg.status === 'sent' || !msg.status) && `Sent at ${formatMessageTime(msg.timestamp)}`}
               </div>
             </div>
           </div>
@@ -355,28 +391,4 @@ export default function ChatRoom() {
       </div>
     </div>
   );
-}
-
-// Helper function for formatting dates
-function formatMessageDate(timestamp: string | Date): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  
-  if (isToday) {
-    return date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  }
-  
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
 } 

@@ -1,55 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 // Make sure this matches your server's URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
-
-async function fetchWithRetry(url: string, options: RequestInit, retries = MAX_RETRIES): Promise<Response> {
-  try {
-    const response = await fetch(url, options);
-    return response;
-  } catch (error) {
-    if (retries > 0) {
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      return fetchWithRetry(url, options, retries - 1);
-    }
-    throw error;
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
-    const authToken = request.cookies.get('auth_token')?.value;
-    console.log('Auth token present:', !!authToken);
+    const searchParams = request.nextUrl.searchParams;
+    const type = searchParams.get('type');
+    const cookieStore = cookies();
+    const authToken = cookieStore.get('auth_token')?.value;
 
     if (!authToken) {
-      return NextResponse.json(
-        { message: 'No token provided' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get('type') || 'list';
-    console.log('Request type:', type);
+    let endpoint = `${API_URL}/api/friends`;
+    
+    // Add type parameter if present
+    if (type) {
+      endpoint += `/${type}`;
+    }
 
-    const response = await fetchWithRetry(`${API_URL}/api/friends/${type}`, {
+    const response = await fetch(endpoint, {
       headers: {
         'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
       },
+      cache: 'no-store',
     });
 
     const data = await response.json();
-    console.log('API response:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
-      console.error('API error:', data);
-      throw new Error(data.message || 'Failed to fetch friends');
+      throw new Error(data.message || 'Failed to fetch friends data');
     }
 
     return NextResponse.json(data);
+
   } catch (error) {
     console.error('Friends API error:', error);
     return NextResponse.json(
@@ -61,25 +49,31 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authToken = request.cookies.get('auth_token')?.value;
+    const searchParams = request.nextUrl.searchParams;
+    const type = searchParams.get('type');
+    const cookieStore = cookies();
+    const authToken = cookieStore.get('auth_token')?.value;
+
     if (!authToken) {
-      return NextResponse.json(
-        { message: 'No token provided' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get('type') || 'request'; // 'request' or 'respond'
+    let endpoint = `${API_URL}/api/friends`;
+    
+    // Add type parameter if present
+    if (type) {
+      endpoint += `/${type}`;
+    }
 
-    const response = await fetch(`${API_URL}/api/friends/${type}`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      cache: 'no-store',
     });
 
     const data = await response.json();
@@ -89,6 +83,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(data);
+
   } catch (error) {
     console.error('Friends API error:', error);
     return NextResponse.json(

@@ -66,27 +66,56 @@ interface ChatMessage {
   content: string;
   sender: string;
   recipient: string;
+  timestamp?: Date;
 }
 
-// Socket.IO Connection
+// Add at the top with other imports
+const onlineUsers = new Map<string, string>(); // userId -> socketId
+
+// Update the Socket.IO Connection handling
 io.on('connection', (socket: Socket) => {
   console.log('A user connected');
 
-  // Store user ID when they connect
   socket.on('identify', (userId: string) => {
+    console.log('User identified:', userId);
+    onlineUsers.set(userId, socket.id);
     socket.join(userId); // Join a room with their user ID
+    
+    // Broadcast to all connected clients that this user is online
+    io.emit('user_status_change', { userId, status: 'online' });
   });
 
   socket.on('send-message', (data: ChatMessage) => {
-    // Send to specific recipient
-    io.to(data.recipient).emit('receive-message', data);
-    // Also send back to sender
-    socket.emit('receive-message', data);
+    // Add timestamp if not provided
+    const messageWithTimestamp = {
+      ...data,
+      timestamp: data.timestamp || new Date(),
+    };
+
+    // Send to recipient
+    io.to(data.recipient).emit('receive-message', messageWithTimestamp);
+    
+    // Send back to sender (in case they have multiple tabs/windows open)
+    socket.emit('receive-message', messageWithTimestamp);
   });
 
   socket.on('disconnect', () => {
+    // Find and remove the disconnected user
+    for (const [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        onlineUsers.delete(userId);
+        // Broadcast that this user is offline
+        io.emit('user_status_change', { userId, status: 'offline' });
+        break;
+      }
+    }
     console.log('User disconnected');
   });
+});
+
+// Add a new endpoint to get online users
+app.get('/api/users/online', (req, res) => {
+  res.json(Array.from(onlineUsers.keys()));
 });
 
 const PORT = process.env.PORT || 4000;

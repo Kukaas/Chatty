@@ -1,23 +1,51 @@
 import { getCurrentUser } from '@/utils/auth';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
 
 interface ChatMessage {
+  _id?: string;
   content: string;
   sender: string;
   recipient: string;
-  timestamp?: Date;
+  timestamp: string | Date;
+  status?: 'sending' | 'sent' | 'error';
+  isOwn?: boolean;
 }
 
-interface SocketRef {
-  current: Socket | null;
+interface OnlineStatus {
+  userId: string;
+  status: 'online' | 'offline';
 }
 
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const socket = useRef<Socket | null>(null);
+
+  // Memoize the socket event handlers
+  const sendMessage = useCallback((data: ChatMessage) => {
+    if (socket.current) {
+      socket.current.emit('send-message', data);
+    }
+  }, []);
+
+  const onReceiveMessage = useCallback((callback: (data: ChatMessage) => void) => {
+    if (socket.current) {
+      socket.current.on('receive-message', callback);
+    }
+    // Return cleanup function
+    return () => {
+      socket.current?.off('receive-message', callback);
+    };
+  }, []);
+
+  const joinRoom = useCallback((roomId: string) => {
+    if (socket.current) {
+      socket.current.emit('join-room', roomId);
+    }
+  }, []);
 
   useEffect(() => {
     const initSocket = async () => {
@@ -25,17 +53,36 @@ export function useSocket() {
         const user = await getCurrentUser();
         if (!user) return;
 
-        socketRef.current = io(SOCKET_URL);
+        socket.current = io(SOCKET_URL);
 
-        socketRef.current.on('connect', () => {
+        socket.current.on('connect', () => {
           setIsConnected(true);
-          // Identify the user to the server with actual user ID
-          socketRef.current?.emit('identify', user._id);
+          socket.current?.emit('identify', user._id);
         });
 
-        socketRef.current.on('disconnect', () => {
+        socket.current.on('disconnect', () => {
           setIsConnected(false);
         });
+
+        // Handle online status changes
+        socket.current.on('user_status_change', ({ userId, status }: OnlineStatus) => {
+          setOnlineUsers(prev => {
+            const updated = new Set(prev);
+            if (status === 'online') {
+              updated.add(userId);
+            } else {
+              updated.delete(userId);
+            }
+            return updated;
+          });
+        });
+
+        // Fetch initial online users
+        const response = await fetch('/api/users/online');
+        if (response.ok) {
+          const onlineUserIds = await response.json();
+          setOnlineUsers(new Set(onlineUserIds));
+        }
       } catch (error) {
         console.error('Socket initialization error:', error);
       }
@@ -44,33 +91,16 @@ export function useSocket() {
     initSocket();
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
+      if (socket.current) {
+        socket.current.disconnect();
       }
     };
   }, []);
 
-  const joinRoom = (roomId: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('join-room', roomId);
-    }
-  };
-
-  const sendMessage = (data: ChatMessage) => {
-    if (socketRef.current) {
-      socketRef.current.emit('send-message', data);
-    }
-  };
-
-  const onReceiveMessage = (callback: (data: ChatMessage) => void) => {
-    if (socketRef.current) {
-      socketRef.current.on('receive-message', callback);
-    }
-  };
-
   return {
-    socket: socketRef.current,
+    socket: socket.current,
     isConnected,
+    onlineUsers,
     joinRoom,
     sendMessage,
     onReceiveMessage,

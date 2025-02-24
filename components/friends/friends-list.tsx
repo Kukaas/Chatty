@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, User } from "lucide-react";
+import { OnlineStatus } from '@/components/online-status';
 
 interface Friend {
   _id: string;
@@ -126,10 +127,16 @@ export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
             key={friend._id}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-50"
           >
-            <Avatar className="h-10 w-10 shrink-0">
-              <AvatarImage src={friendDetails.avatar} />
-              <AvatarFallback>{friendDetails.name[0]}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={friendDetails.avatar} alt={friendDetails.name} />
+                <AvatarFallback>{friendDetails.name[0]}</AvatarFallback>
+              </Avatar>
+              <OnlineStatus 
+                userId={friendDetails._id} 
+                className="absolute bottom-0 right-0 ring-2 ring-white"
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1 mr-4">
