@@ -38,6 +38,15 @@ export default function LoginPage() {
         throw new Error(result.message);
       }
 
+      // Add a small delay to ensure the cookie is set
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify the cookie was set by checking auth status
+      const authCheck = await fetch('/api/friends/check-auth');
+      if (!authCheck.ok) {
+        throw new Error('Authentication failed');
+      }
+
       toast.success("Login successful!");
       router.push('/chat');
     } catch (err) {

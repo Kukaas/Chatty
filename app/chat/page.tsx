@@ -54,7 +54,7 @@ export default function ChatPage() {
 
   return (
     <>
-      <Header showAuthButtons={false} />
+      <Header />
       <div className="flex h-screen bg-gray-50 pt-16">
         {/* Sidebar */}
         <div className="w-64 bg-white border-r">

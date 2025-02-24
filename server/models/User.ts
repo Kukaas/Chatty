@@ -7,6 +7,8 @@ interface IUser extends Document {
   avatar: string;
   emailVerified: boolean;
   createdAt: Date;
+  friends: Schema.Types.ObjectId[];
+  friendRequests: Schema.Types.ObjectId[];
 }
 
 const userSchema = new Schema<IUser>({
@@ -35,6 +37,24 @@ const userSchema = new Schema<IUser>({
     type: Date,
     default: Date.now,
   },
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual populate for friends
+userSchema.virtual('friends', {
+  ref: 'Friend',
+  localField: '_id',
+  foreignField: 'requester',
+  match: { status: 'accepted' }
+});
+
+userSchema.virtual('friendRequests', {
+  ref: 'Friend',
+  localField: '_id',
+  foreignField: 'recipient',
+  match: { status: 'pending' }
 });
 
 export const User = models.User || model<IUser>('User', userSchema); 

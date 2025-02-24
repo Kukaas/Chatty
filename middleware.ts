@@ -5,8 +5,19 @@ export function middleware(request: NextRequest) {
   const authToken = request.cookies.get('auth_token');
 
   // Protected routes that require authentication
-  if (request.nextUrl.pathname.startsWith('/chat')) {
+  if (
+    request.nextUrl.pathname.startsWith('/chat') ||
+    request.nextUrl.pathname.startsWith('/friends') ||
+    (request.nextUrl.pathname.startsWith('/api/friends') && 
+     !request.nextUrl.pathname.startsWith('/api/friends/check-auth'))  // Don't protect check-auth
+  ) {
     if (!authToken) {
+      if (request.nextUrl.pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { message: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }
@@ -24,5 +35,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/chat/:path*', '/login', '/signup'],
+  matcher: [
+    '/chat/:path*',
+    '/friends/:path*',
+    '/api/friends/:path*',
+    '/login',
+    '/signup'
+  ],
 }; 

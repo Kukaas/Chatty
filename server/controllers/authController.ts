@@ -5,6 +5,7 @@ import { User } from '../models/User';
 import { EmailVerification } from '../models/EmailVerification';
 import { sendVerificationEmail } from '../services/emailService';
 import { SignupData, LoginData } from '../types/auth';
+import jwt from 'jsonwebtoken';
 
 // Define request types
 interface SignupRequest extends Request {
@@ -116,9 +117,15 @@ export const login = async (req: LoginRequest, res: Response) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
-    // TODO: Generate JWT token here
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
 
     res.json({
+      token, // Include the token in response
       user: {
         id: user._id,
         name: user.name,

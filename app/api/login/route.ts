@@ -6,33 +6,51 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const apiResponse = await fetch(`${API_URL}/api/login`, {
+    const apiResponse = await fetch(`${API_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify(body),
     });
 
-    const data = await apiResponse.json();
-
     if (!apiResponse.ok) {
+      const errorText = await apiResponse.text();
+      console.error('Login API Error Response:', errorText);
       return NextResponse.json(
-        { message: data.message || 'Invalid credentials' },
+        { message: 'Invalid credentials' },
         { status: apiResponse.status }
       );
     }
 
-    // Set authentication cookie or token here
-    const jsonResponse = NextResponse.json(data);
-    jsonResponse.cookies.set('auth_token', data.token, {
+    const data = await apiResponse.json();
+
+    if (!data.token) {
+      return NextResponse.json(
+        { message: 'No token received from server' },
+        { status: 500 }
+      );
+    }
+
+    // Create a new response
+    const response = NextResponse.json({ 
+      success: true,
+      user: data.user 
+    });
+
+    // Set the auth token cookie
+    response.cookies.set({
+      name: 'auth_token',
+      value: data.token,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
 
-    return jsonResponse;
+    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(

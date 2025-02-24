@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes';
+import friendRoutes from './routes/friendRoutes';
+import userRoutes from './routes/userRoutes';
 
 dotenv.config();
 
@@ -22,7 +24,9 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/api', authRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/users', userRoutes);
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatty')
