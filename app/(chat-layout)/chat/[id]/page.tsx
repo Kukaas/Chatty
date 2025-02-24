@@ -57,8 +57,8 @@ export default function ChatRoom() {
     fetchUser();
   }, []);
 
-  const getFriendDetails = (friend: Friend) => {
-    if (!currentUser) return null;
+  const getFriendDetails = (friend: Friend | null) => {
+    if (!currentUser || !friend) return null;
     return friend.requester._id === currentUser._id ? friend.recipient : friend.requester;
   };
 
@@ -244,7 +244,36 @@ export default function ChatRoom() {
     );
   }
 
-  const friendDetails = getFriendDetails(friend);
+  const friendDetails = friend ? getFriendDetails(friend) : null;
+  if (!friendDetails) {
+    return (
+      <div className="flex flex-col h-screen">
+        <div className="h-14 sm:h-16 border-b border-neutral-100 px-3 sm:px-6 flex items-center sticky top-0 z-10 bg-white">
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              setSidebarOpen(true);
+            }}
+            className="md:hidden p-2 hover:bg-neutral-50 rounded-lg -ml-2"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <h1 className="text-base sm:text-lg font-medium ml-2 sm:ml-0">Chat</h1>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-neutral-500">Could not load chat details</p>
+            <button 
+              onClick={() => router.push('/chat')}
+              className="mt-4 text-sm text-black hover:underline"
+            >
+              Return to Chat
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen">

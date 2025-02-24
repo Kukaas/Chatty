@@ -141,4 +141,59 @@ export const getFriendRequests = async (req: AuthRequest, res: Response) => {
     console.error('Get friend requests error:', error);
     res.status(500).json({ message: 'Error getting friend requests' });
   }
+};
+
+export const getFriend = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const friendId = req.params.id;
+    
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const friendship = await Friend.findOne({
+      $and: [
+        {
+          $or: [
+            { requester: userId },
+            { recipient: userId }
+          ]
+        },
+        {
+          $or: [
+            { requester: friendId },
+            { recipient: friendId }
+          ]
+        },
+        { status: 'accepted' }
+      ]
+    })
+    .populate('requester recipient', 'name email avatar')
+    .lean();
+
+    if (!friendship) {
+      // If no friendship found, try to get the user details
+      const user = await User.findById(friendId)
+        .select('name email avatar')
+        .lean();
+
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Return user details in a friendship-like structure
+      return res.json({
+        _id: user._id,
+        requester: user,
+        recipient: user,
+        status: 'none'
+      });
+    }
+
+    res.json(friendship);
+  } catch (error) {
+    console.error('Get friend details error:', error);
+    res.status(500).json({ message: 'Error getting friend details' });
+  }
 }; 

@@ -21,15 +21,11 @@ interface Friend {
     email: string;
     avatar: string;
   };
+  status: string;
 }
 
 interface FriendsListProps {
-  renderFriend?: (friend: {
-    _id: string;
-    name: string;
-    email: string;
-    avatar: string;
-  }) => React.ReactNode;
+  renderFriend: (friend: Friend) => React.ReactNode;
 }
 
 export function FriendsList({ renderFriend }: FriendsListProps) {
@@ -85,12 +81,7 @@ export function FriendsList({ renderFriend }: FriendsListProps) {
         if (!friendDetails) return null;
 
         return renderFriend ? (
-          renderFriend({
-            _id: friend._id,
-            name: friendDetails.name,
-            email: friendDetails.email,
-            avatar: friendDetails.avatar
-          })
+          renderFriend(friend)
         ) : (
           <div 
             key={friend._id}

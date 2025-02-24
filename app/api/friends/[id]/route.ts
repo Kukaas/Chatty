@@ -8,23 +8,22 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Get the friend ID from the URL instead of params directly
-    const url = new URL(request.url);
-    const friendId = url.pathname.split('/').pop();
+    // Wait for params to be available
+    const { id: friendId } = await params;
     const authToken = request.cookies.get('auth_token')?.value;
 
     if (!friendId) {
-      return new Response(JSON.stringify({ message: 'Friend ID is required' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return Response.json(
+        { message: 'Friend ID is required' },
+        { status: 400 }
+      );
     }
 
     if (!authToken) {
-      return new Response(JSON.stringify({ message: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return Response.json(
+        { message: 'Unauthorized' },
+        { status: 401 }
+      );
     }
 
     const response = await fetch(
@@ -41,21 +40,16 @@ export async function GET(
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch friend details');
+      throw new Error(data.message || 'Failed to fetch details');
     }
 
     return Response.json(data);
 
   } catch (error) {
     console.error('Error in friend details API:', error);
-    return new Response(
-      JSON.stringify({ 
-        message: error instanceof Error ? error.message : 'Internal server error' 
-      }), 
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+    return Response.json(
+      { message: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 }
     );
   }
 } 
