@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,50 +12,59 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { message: 'Verification token is required' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
     }
 
     const response = await fetch(`${API_URL}/api/auth/verify-email?token=${token}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
-      }
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store'
     });
 
-    // Get raw response text first
-    const responseText = await response.text();
-    // Try to parse as JSON
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse API response as JSON:', parseError);
-      return NextResponse.json(
-        { 
-          message: 'Invalid response from server',
-          details: process.env.NODE_ENV === 'development' ? responseText : undefined
-        },
-        { status: 500 }
-      );
-    }
+    const data = await response.json();
+
+    // Create response headers
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
 
     if (!response.ok) {
       return NextResponse.json(
         { message: data.message || 'Verification failed' },
-        { status: response.status }
+        { 
+          status: response.status,
+          headers
+        }
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers });
   } catch (error) {
     console.error('Email verification error:', error);
     return NextResponse.json(
+      { message: 'Error verifying email' },
       { 
-        message: 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
-      },
-      { status: 500 }
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 } 
