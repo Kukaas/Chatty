@@ -3,7 +3,7 @@
 import { FriendsList } from "@/components/friends/friends-list";
 import { FriendRequests } from "@/components/friends/friend-requests";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Menu, User, Search } from 'lucide-react';
+import { MessageSquare, Menu, User, Search, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { useState } from 'react';
@@ -33,6 +33,7 @@ export default function ConnectionsPage() {
   const { setSidebarOpen } = useSidebar();
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const getFriendDetails = (friend: Friend) => {
     const currentUserId = localStorage.getItem('userId');
@@ -41,6 +42,7 @@ export default function ConnectionsPage() {
 
   const handleFriendAction = async (user: UserType, action: 'add' | 'accept' | 'reject' | 'cancel') => {
     try {
+      setIsLoading(true);
       let endpoint = '/api/friends';
       let body = {};
 
@@ -72,6 +74,8 @@ export default function ConnectionsPage() {
       router.refresh();
     } catch (error) {
       console.error('Friend action error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,7 +100,7 @@ export default function ConnectionsPage() {
         <div className="px-4 sm:px-6 py-4">
           <h3 className="text-xs font-medium text-neutral-400 mb-3">PENDING REQUESTS</h3>
           <div className="space-y-1">
-            <FriendRequests />
+            <FriendRequests isLoading={isLoading} />
           </div>
         </div>
 
@@ -104,59 +108,68 @@ export default function ConnectionsPage() {
         <div className="px-4 sm:px-6 py-4 border-t border-neutral-100">
           <h3 className="text-xs font-medium text-neutral-400 mb-3">FRIENDS</h3>
           <div>
-            <FriendsList renderFriend={(friend: Friend) => {
-              const friendDetails = getFriendDetails(friend);
-              
-              return (
-                <div 
-                  key={friend._id} 
-                  className="flex items-center gap-3 py-2 hover:bg-neutral-50"
-                >
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={friendDetails.avatar} />
-                    <AvatarFallback>{friendDetails.name?.[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-medium truncate">{friendDetails.name}</h4>
-                        <p className="text-xs text-neutral-500 truncate">{friendDetails.email}</p>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setSelectedUser({
-                              _id: friendDetails._id,
-                              name: friendDetails.name,
-                              email: friendDetails.email,
-                              avatar: friendDetails.avatar,
-                              friendshipStatus: 'accepted',
-                              friendshipId: friend._id,
-                              isRequester: false
-                            });
-                          }}
-                          className="p-2 hover:bg-neutral-100 rounded-lg"
-                        >
-                          <User className="h-4 w-4 text-neutral-400" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            router.push(`/chat/${friendDetails._id}`);
-                          }}
-                          className="p-2 hover:bg-neutral-100 rounded-lg"
-                        >
-                          <MessageSquare className="h-4 w-4 text-neutral-400" />
-                        </button>
+            <FriendsList 
+              isLoading={isLoading}
+              renderFriend={(friend: Friend) => {
+                const friendDetails = getFriendDetails(friend);
+                
+                return (
+                  <div 
+                    key={friend._id} 
+                    className="flex items-center gap-3 py-2 hover:bg-neutral-50"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={friendDetails.avatar} />
+                      <AvatarFallback>{friendDetails.name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-medium truncate">{friendDetails.name}</h4>
+                          <p className="text-xs text-neutral-500 truncate">{friendDetails.email}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            disabled={isLoading}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedUser({
+                                _id: friendDetails._id,
+                                name: friendDetails.name,
+                                email: friendDetails.email,
+                                avatar: friendDetails.avatar,
+                                friendshipStatus: 'accepted',
+                                friendshipId: friend._id,
+                                isRequester: false
+                              });
+                            }}
+                            className="p-2 hover:bg-neutral-100 rounded-lg disabled:opacity-50"
+                          >
+                            {isLoading ? (
+                              <Loader2 className="h-4 w-4 text-neutral-400 animate-spin" />
+                            ) : (
+                              <User className="h-4 w-4 text-neutral-400" />
+                            )}
+                          </button>
+                          <button
+                            disabled={isLoading}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              router.push(`/chat/${friendDetails._id}`);
+                            }}
+                            className="p-2 hover:bg-neutral-100 rounded-lg disabled:opacity-50"
+                          >
+                            <MessageSquare className="h-4 w-4 text-neutral-400" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            }} />
+                );
+              }} 
+            />
           </div>
         </div>
       </div>
@@ -166,6 +179,7 @@ export default function ConnectionsPage() {
         isOpen={!!selectedUser}
         onClose={() => setSelectedUser(null)}
         onFriendAction={handleFriendAction}
+        isLoading={isLoading}
       />
     </div>
   );

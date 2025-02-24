@@ -22,46 +22,76 @@ interface Friend {
 }
 
 interface FriendsListProps {
+  isLoading?: boolean;
   renderFriend: (friend: Friend) => React.ReactNode;
 }
 
-export function FriendsList({ renderFriend }: FriendsListProps) {
+function truncateEmail(email: string) {
+  if (email.length > 20) {
+    return email.substring(0, 17) + '...';
+  }
+  return email;
+}
+
+export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
-    const fetchCurrentUser = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/auth/me');
-        if (!response.ok) throw new Error('Failed to fetch user');
-        const data = await response.json();
-        setCurrentUser(data);
+        setIsLoadingData(true);
+        const [userResponse, friendsResponse] = await Promise.all([
+          fetch('/api/auth/me'),
+          fetch('/api/friends?type=list')
+        ]);
+        
+        if (!userResponse.ok || !friendsResponse.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const [userData, friendsData] = await Promise.all([
+          userResponse.json(),
+          friendsResponse.json()
+        ]);
+
+        setCurrentUser(userData);
+        setFriends(friendsData);
       } catch (error) {
-        console.error('Error fetching current user:', error);
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoadingData(false);
       }
     };
-    fetchCurrentUser();
-  }, []);
 
-  useEffect(() => {
-    const fetchFriends = async () => {
-      try {
-        const response = await fetch('/api/friends?type=list');
-        if (!response.ok) throw new Error('Failed to fetch friends');
-        const data = await response.json();
-        setFriends(data);
-      } catch (error) {
-        console.error('Error fetching friends:', error);
-      }
-    };
-
-    fetchFriends();
+    fetchData();
   }, []);
 
   const getFriendDetails = (friend: Friend) => {
     if (!currentUser) return null;
     return friend.requester._id === currentUser._id ? friend.recipient : friend.requester;
   };
+
+  if (isLoadingData) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-3 p-2">
+            <div className="h-10 w-10 rounded-full bg-neutral-200 animate-pulse" />
+            <div className="flex-1">
+              <div className="h-4 w-24 bg-neutral-200 rounded animate-pulse mb-2" />
+              <div className="h-3 w-32 bg-neutral-200 rounded animate-pulse" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-8 w-8 bg-neutral-200 rounded animate-pulse" />
+              <div className="h-8 w-8 bg-neutral-200 rounded animate-pulse" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   if (friends.length === 0) {
     return (
@@ -77,8 +107,20 @@ export function FriendsList({ renderFriend }: FriendsListProps) {
         const friendDetails = getFriendDetails(friend);
         if (!friendDetails) return null;
 
+        const truncatedEmail = truncateEmail(friendDetails.email);
+
         return renderFriend ? (
-          renderFriend(friend)
+          renderFriend({
+            ...friend,
+            recipient: {
+              ...friend.recipient,
+              email: friend.recipient._id === friendDetails._id ? truncatedEmail : friend.recipient.email
+            },
+            requester: {
+              ...friend.requester,
+              email: friend.requester._id === friendDetails._id ? truncatedEmail : friend.requester.email
+            }
+          })
         ) : (
           <div 
             key={friend._id}
@@ -90,15 +132,16 @@ export function FriendsList({ renderFriend }: FriendsListProps) {
             </Avatar>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="min-w-0 flex-1 mr-4">
                   <h4 className="text-sm font-medium truncate hover:underline cursor-pointer">
                     {friendDetails.name}
                   </h4>
-                  <p className="text-xs text-neutral-500 truncate hidden sm:block">
-                    {friendDetails.email}
+                  <p className="text-xs text-neutral-500 hidden sm:block">
+                    <span className="hidden lg:block">{friendDetails.email}</span>
+                    <span className="sm:block lg:hidden">{truncatedEmail}</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-500 hover:text-neutral-700 transition-colors"
                   >

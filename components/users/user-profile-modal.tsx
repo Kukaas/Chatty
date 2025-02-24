@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from "@/types/user";
-import { MessageSquare, UserPlus, Clock, X } from 'lucide-react';
+import { MessageSquare, UserPlus, Clock, X, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 
@@ -12,9 +12,10 @@ interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onFriendAction: (user: User, action: 'add' | 'accept' | 'reject' | 'cancel') => void;
+  isLoading?: boolean;
 }
 
-export function UserProfileModal({ user, isOpen, onClose, onFriendAction }: UserProfileModalProps) {
+export function UserProfileModal({ user, isOpen, onClose, onFriendAction, isLoading }: UserProfileModalProps) {
   const router = useRouter();
 
   if (!user) return null;
@@ -43,50 +44,85 @@ export function UserProfileModal({ user, isOpen, onClose, onFriendAction }: User
             <div className="flex gap-3 mt-6 w-full">
               {user.friendshipStatus === 'accepted' ? (
                 <button 
+                  disabled={isLoading}
                   onClick={() => {
                     router.push(`/chat/${user._id}`);
                     onClose();
                   }}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors disabled:opacity-50"
                 >
-                  <MessageSquare className="h-4 w-4" />
-                  <span>Message</span>
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <MessageSquare className="h-4 w-4" />
+                      <span>Message</span>
+                    </>
+                  )}
                 </button>
               ) : user.friendshipStatus === 'pending' ? (
                 user.isRequester ? (
                   <button 
+                    disabled={isLoading}
                     onClick={() => onFriendAction(user, 'cancel')}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-neutral-100 text-neutral-500 rounded-lg hover:bg-neutral-200"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-neutral-100 text-neutral-500 rounded-lg hover:bg-neutral-200 disabled:opacity-50"
                   >
-                    <Clock className="h-4 w-4" />
-                    <span>Pending</span>
-                    <X className="h-4 w-4" />
+                    {isLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Clock className="h-4 w-4" />
+                        <span>Pending</span>
+                        <X className="h-4 w-4" />
+                      </>
+                    )}
                   </button>
                 ) : (
                   <>
                     <button 
+                      disabled={isLoading}
                       onClick={() => onFriendAction(user, 'accept')}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors disabled:opacity-50"
                     >
-                      <UserPlus className="h-4 w-4" />
-                      <span>Accept</span>
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4" />
+                          <span>Accept</span>
+                        </>
+                      )}
                     </button>
                     <button 
+                      disabled={isLoading}
                       onClick={() => onFriendAction(user, 'reject')}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-neutral-100 rounded-lg hover:bg-neutral-200"
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-neutral-100 rounded-lg hover:bg-neutral-200 disabled:opacity-50"
                     >
-                      <X className="h-4 w-4" />
-                      <span>Decline</span>
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <X className="h-4 w-4" />
+                          <span>Decline</span>
+                        </>
+                      )}
                     </button>
                   </>
                 )
               ) : (
                 <button 
+                  disabled={isLoading}
                   onClick={() => onFriendAction(user, 'add')}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-black text-white rounded-lg hover:bg-black/90 transition-colors disabled:opacity-50"
                 >
-                  <UserPlus className="h-4 w-4" />
-                  <span>Add Friend</span>
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4" />
+                      <span>Add Friend</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>
