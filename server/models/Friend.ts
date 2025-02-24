@@ -1,13 +1,14 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
-const friendSchema = new mongoose.Schema({
+// Check if the model already exists before defining it
+export const Friend = mongoose.models.Friend || mongoose.model('Friend', new Schema({
   requester: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   recipient: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
@@ -20,6 +21,4 @@ const friendSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-});
-
-export const Friend = mongoose.model('Friend', friendSchema);
+}));
