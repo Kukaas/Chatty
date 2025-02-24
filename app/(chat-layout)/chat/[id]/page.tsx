@@ -202,8 +202,44 @@ export default function ChatRoom() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-neutral-500">Loading...</div>
+      <div className="flex flex-col h-screen">
+        {/* Skeleton header */}
+        <div className="h-14 sm:h-16 border-b border-neutral-100 px-3 sm:px-6 flex items-center sticky top-0 z-10 bg-white">
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              setSidebarOpen(true);
+            }}
+            className="md:hidden p-2 hover:bg-neutral-50 rounded-lg -ml-2"
+          >
+            <Menu className="h-5 w-5 text-neutral-400" />
+          </button>
+          <div className="flex items-center gap-3 ml-2 sm:ml-0">
+            <div className="h-8 w-8 rounded-full bg-neutral-100 animate-pulse" />
+            <div className="h-4 w-32 bg-neutral-100 rounded animate-pulse" />
+          </div>
+        </div>
+
+        {/* Skeleton messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          <div className="flex justify-start">
+            <div className="w-[250px] h-12 bg-neutral-100 rounded-2xl animate-pulse" />
+          </div>
+          <div className="flex justify-end">
+            <div className="w-[200px] h-10 bg-neutral-100 rounded-2xl animate-pulse" />
+          </div>
+          <div className="flex justify-start">
+            <div className="w-[180px] h-12 bg-neutral-100 rounded-2xl animate-pulse" />
+          </div>
+        </div>
+
+        {/* Skeleton input */}
+        <div className="p-4 border-t border-neutral-100 bg-white">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-12 bg-neutral-100 rounded-lg animate-pulse" />
+            <div className="h-12 w-12 bg-neutral-100 rounded-lg animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }

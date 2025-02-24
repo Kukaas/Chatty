@@ -2,16 +2,21 @@
 
 import { MessageSquare, Menu } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 export default function ChatPage() {
   const router = useRouter();
+  const { setSidebarOpen } = useSidebar();
 
   return (
     <div className="flex-1 flex flex-col h-screen">
       {/* Header */}
       <div className="h-14 sm:h-16 border-b border-neutral-100 px-3 sm:px-6 flex items-center sticky top-0 z-10 bg-white">
         <button 
-          onClick={() => router.push('/chat')}
+          onClick={(e) => {
+            e.preventDefault();
+            setSidebarOpen(true);
+          }}
           className="md:hidden p-2 hover:bg-neutral-50 rounded-lg -ml-2"
         >
           <Menu className="h-5 w-5" />
