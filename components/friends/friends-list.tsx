@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare } from "lucide-react";
-import { toast } from "sonner";
+import { MessageSquare, User } from "lucide-react";
 
 interface Friend {
   _id: string;
@@ -87,13 +84,33 @@ export function FriendsList({ renderFriend }: FriendsListProps) {
             key={friend._id}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-50"
           >
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-10 w-10 shrink-0">
               <AvatarImage src={friendDetails.avatar} />
               <AvatarFallback>{friendDetails.name[0]}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <h4 className="text-sm font-medium truncate">{friendDetails.name}</h4>
-              <p className="text-xs text-neutral-500 truncate">{friendDetails.email}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium truncate hover:underline cursor-pointer">
+                    {friendDetails.name}
+                  </h4>
+                  <p className="text-xs text-neutral-500 truncate hidden sm:block">
+                    {friendDetails.email}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-500 hover:text-neutral-700 transition-colors"
+                  >
+                    <User className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="p-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-700 transition-colors"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         );
