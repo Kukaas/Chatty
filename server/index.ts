@@ -14,14 +14,23 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Filter out undefined values from allowed origins
-const allowedOrigins = [
-  process.env.NEXT_PUBLIC_APP_URL,
-  process.env.NEXT_PUBLIC_SOCKET_URL,
-  'https://your-app-name.vercel.app', // Replace with your actual Vercel domain
-  // In production, also allow the deployment URL
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
-].filter((origin): origin is string => !!origin);
+// Update the allowed origins configuration
+const getAllowedOrigins = () => {
+  const origins = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  ];
+
+  // In development, add the socket URL if it's different from the app URL
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_SOCKET_URL) {
+    origins.push(process.env.NEXT_PUBLIC_SOCKET_URL);
+  }
+
+  // Filter out null/undefined values and return unique origins
+  return [...new Set(origins.filter((origin): origin is string => !!origin))];
+};
+
+const allowedOrigins = getAllowedOrigins();
 
 const io = new Server(httpServer, {
   cors: {

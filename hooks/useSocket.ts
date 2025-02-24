@@ -2,13 +2,17 @@ import { getCurrentUser } from '@/utils/auth';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+const getSocketUrl = () => {
+  if (typeof window === 'undefined') return ''; // Return empty string during SSR
 
-let socketUrl = SOCKET_URL;
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-  // In production, use the same host as the app
-  socketUrl = window.location.origin;
-}
+  if (process.env.NODE_ENV === 'production') {
+    // In production, use the current origin
+    return window.location.origin;
+  }
+
+  // In development, use the environment variable or fallback
+  return process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+};
 
 interface ChatMessage {
   _id?: string;
@@ -79,6 +83,9 @@ export function useSocket() {
           avatar: user.avatar
         });
 
+        const socketUrl = getSocketUrl();
+        if (!socketUrl) return; // Don't initialize socket during SSR
+
         socket.current = io(socketUrl, {
           withCredentials: true
         });
@@ -129,7 +136,9 @@ export function useSocket() {
       }
     };
 
-    initSocket();
+    if (typeof window !== 'undefined') {
+      initSocket();
+    }
 
     return () => {
       if (socket.current) {
