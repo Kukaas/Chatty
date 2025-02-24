@@ -15,19 +15,6 @@ export default function FriendsPage() {
   const pathname = usePathname();
   const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', { method: 'POST' });
-      if (response.ok) {
-        router.push('/login');
-      } else {
-        throw new Error('Logout failed');
-      }
-    } catch (error) {
-      toast.error('Failed to logout');
-    }
-  };
-
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
