@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Send, Menu } from 'lucide-react';
 import { toast } from "sonner";
 import { getCurrentUser } from '@/utils/auth';
-import { useParams, useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useSidebar } from '@/contexts/SidebarContext';
 import { OnlineStatus } from '@/components/online-status';
 import { TypingIndicator } from "@/components/chat/typing-indicator";
@@ -54,7 +54,7 @@ function formatMessageTime(timestamp: string | Date): string {
 }
 
 export default function ChatRoom() {
-  const params = useParams() as Params;
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
@@ -81,11 +81,11 @@ export default function ChatRoom() {
 
   useEffect(() => {
     const fetchFriend = async () => {
-      if (!params?.id || !currentUser) return;
+      if (!id || !currentUser) return;
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/friends/${params.id}`, {
+        const response = await fetch(`/api/friends/${id}`, {
           credentials: 'include', // Include cookies
         });
         
@@ -110,12 +110,12 @@ export default function ChatRoom() {
     };
 
     fetchFriend();
-  }, [params?.id, currentUser, router]);
+  }, [id, currentUser, router]);
 
   useEffect(() => {
     const fetchMessages = async () => {
       try {
-        const response = await fetch(`/api/messages?recipientId=${params.id}`);
+        const response = await fetch(`/api/messages?recipientId=${id}`);
         if (!response.ok) throw new Error('Failed to fetch messages');
         const data = await response.json();
         setMessages(data);
@@ -125,15 +125,15 @@ export default function ChatRoom() {
       }
     };
     fetchMessages();
-  }, [params.id]);
+  }, [id]);
 
   // Memoize the message handler
   const handleMessage = useCallback((data: Message) => {
     if (!currentUser) return;
 
     const isRelevantMessage = 
-      data.sender === params.id || 
-      data.recipient === params.id;
+      data.sender === id || 
+      data.recipient === id;
 
     if (isRelevantMessage) {
       setMessages(prev => {
@@ -157,7 +157,7 @@ export default function ChatRoom() {
       // Scroll to bottom when new message arrives
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [currentUser, params.id]);
+  }, [currentUser, id]);
 
   // Set up socket message listener
   useEffect(() => {
@@ -176,8 +176,8 @@ export default function ChatRoom() {
     setMessage(value);
 
     // Handle typing indicator
-    if (value && params.id) {
-      startTyping(params.id);
+    if (value && id) {
+      startTyping(id);
       
       // Clear existing timeout
       if (typingTimeout) {
@@ -186,7 +186,7 @@ export default function ChatRoom() {
       
       // Set new timeout
       const timeout = setTimeout(() => {
-        stopTyping(params.id);
+        stopTyping(id);
       }, 1000);
       
       setTypingTimeout(timeout);
@@ -209,7 +209,7 @@ export default function ChatRoom() {
     const newMessage: Message = {
       content: message,
       sender: currentUser._id,
-      recipient: params.id as string,
+      recipient: id as string,
       timestamp: new Date(),
       status: 'sending',
       isOwn: true
@@ -224,7 +224,7 @@ export default function ChatRoom() {
       sendMessage({
         content: message,
         sender: currentUser._id,
-        recipient: params.id as string,
+        recipient: id as string,
         timestamp: new Date()
       });
 
@@ -236,7 +236,7 @@ export default function ChatRoom() {
         },
         body: JSON.stringify({
           content: message,
-          recipientId: params.id,
+          recipientId: id,
         }),
       });
 

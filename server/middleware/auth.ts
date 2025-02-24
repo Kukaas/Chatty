@@ -8,17 +8,18 @@ interface AuthRequest extends Request {
   };
 }
 
-export const authenticateToken = async (
+export const authenticateToken = (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     if (!token) {
-      return res.status(401).json({ message: 'No token provided' });
+      res.status(401).json({ message: 'No token provided' });
+      return;
     }
 
     const jwtSecret = process.env.JWT_SECRET;
@@ -34,6 +35,7 @@ export const authenticateToken = async (
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(403).json({ message: 'Invalid token' });
+    res.status(403).json({ message: 'Invalid token' });
+    return;
   }
 }; 

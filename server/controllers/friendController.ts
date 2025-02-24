@@ -2,37 +2,68 @@ import { Request, Response } from 'express';
 import { Friend } from '../models/Friend';
 import { User } from '../models/User';
 import mongoose from 'mongoose';
+import { AuthRequest } from '../types/auth';
 
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
+interface Friend {
+  _id: string | mongoose.Types.ObjectId;
+  requester: {
+    _id: string | mongoose.Types.ObjectId;
+    name: string;
     email: string;
+    avatar: string;
   };
+  recipient: {
+    _id: string | mongoose.Types.ObjectId;
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface IFriend extends mongoose.Document {
+  _id: mongoose.Types.ObjectId;
+  requester: {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  recipient: {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface IUser {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  email: string;
+  avatar: string;
 }
 
 export const sendFriendRequest = async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.body;
     const requesterId = req.user?.id;
-    console.log('Friend request from:', requesterId, 'to:', userId);
 
     if (!requesterId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
     }
 
-    // Prevent self-friending
     if (requesterId === userId) {
-      console.log('Attempted self-friend request');
-      return res.status(400).json({ message: 'Cannot send friend request to yourself' });
+      res.status(400).json({ message: 'Cannot send friend request to yourself' });
+      return;
     }
 
-    // Check if recipient user exists
-    const recipientUser = await User.findById(userId);
-    if (!recipientUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Check if friend request already exists
     const existingRequest = await Friend.findOne({
       $or: [
         { requester: requesterId, recipient: userId },
@@ -41,11 +72,11 @@ export const sendFriendRequest = async (req: AuthRequest, res: Response) => {
     });
 
     if (existingRequest) {
-      return res.status(400).json({ message: 'Friend request already exists' });
+      res.status(400).json({ message: 'Friend request already exists' });
+      return;
     }
 
-    // Create new friend request
-    const friendRequest = await Friend.create({
+    await Friend.create({
       requester: requesterId,
       recipient: userId,
       status: 'pending'
@@ -64,17 +95,19 @@ export const respondToFriendRequest = async (req: AuthRequest, res: Response) =>
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
     }
 
     const friendRequest = await Friend.findOne({
       _id: requestId,
       recipient: userId,
-      status: 'pending',
+      status: 'pending'
     });
 
     if (!friendRequest) {
-      return res.status(404).json({ message: 'Friend request not found' });
+      res.status(404).json({ message: 'Friend request not found' });
+      return;
     }
 
     friendRequest.status = status;
@@ -90,47 +123,21 @@ export const respondToFriendRequest = async (req: AuthRequest, res: Response) =>
 export const getFriends = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
-    console.log('Getting friends for user:', userId);
 
     if (!userId) {
-      console.log('No user ID found in request');
-      return res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
     }
 
     const friends = await Friend.find({
       $or: [{ requester: userId }, { recipient: userId }],
-      status: 'accepted',
-    })
-    .populate('requester recipient', 'name email avatar')
-    .lean();
+      status: 'accepted'
+    }).populate('requester recipient', 'name email avatar');
 
-    // Filter out duplicates and self-referential friendships
-    const uniqueFriends = friends.reduce((acc: any[], friend) => {
-      // Check for self-referential friendship
-      if (friend.requester._id.toString() === friend.recipient._id.toString()) {
-        return acc;
-      }
-
-      // Check for duplicates
-      const exists = acc.find(f => 
-        f._id.toString() === friend._id.toString() ||
-        (f.requester._id.toString() === friend.requester._id.toString() && 
-         f.recipient._id.toString() === friend.recipient._id.toString()) ||
-        (f.requester._id.toString() === friend.recipient._id.toString() && 
-         f.recipient._id.toString() === friend.requester._id.toString())
-      );
-
-      if (!exists) {
-        acc.push(friend);
-      }
-      return acc;
-    }, []);
-
-    console.log('Filtered friends:', JSON.stringify(uniqueFriends, null, 2));
-    res.json(uniqueFriends);
+    res.json(friends);
   } catch (error) {
     console.error('Get friends error:', error);
-    res.status(500).json({ message: 'Error getting friends' });
+    res.status(500).json({ message: 'Error getting friends list' });
   }
 };
 
@@ -139,7 +146,8 @@ export const getFriendRequests = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
     }
 
     const requests = await Friend.find({
@@ -181,13 +189,13 @@ export const getFriend = async (req: AuthRequest, res: Response) => {
       ]
     })
     .populate('requester recipient', 'name email avatar')
-    .lean();
+    .lean() as unknown as Friend;
 
     if (!friendship) {
       // If no friendship found, try to get the user details
       const user = await User.findById(friendId)
         .select('name email avatar')
-        .lean();
+        .lean() as unknown as IUser;
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });

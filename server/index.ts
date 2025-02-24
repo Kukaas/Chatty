@@ -14,11 +14,12 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
+// Filter out undefined values from allowed origins
 const allowedOrigins = [
   process.env.NEXT_PUBLIC_APP_URL,
   'https://your-app-name.vercel.app',
   // Add any other domains you need
-];
+].filter((origin): origin is string => !!origin);
 
 const io = new Server(httpServer, {
   cors: {

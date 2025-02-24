@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Request, Response } from 'express';
 import { login, signup, verifyEmail } from '../controllers/authController';
 import { authenticateToken } from '../middleware/auth';
 import { User } from '../models/User';
@@ -12,20 +13,22 @@ router.post('/signup', signup);
 router.get('/verify-email', verifyEmail);
 
 // Protected route to get current user
-router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     
     if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
     }
 
     const user = await User.findById(userId)
-      .select('-password') // Exclude password from the response
-      .lean(); // Convert to plain JavaScript object
+      .select('-password')
+      .lean();
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      res.status(404).json({ message: 'User not found' });
+      return;
     }
 
     res.json(user);

@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const authToken = request.cookies.get('auth_token')?.value;

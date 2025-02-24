@@ -7,13 +7,20 @@ import { sendVerificationEmail } from '../services/emailService';
 import { SignupData, LoginData } from '../types/auth';
 import jwt from 'jsonwebtoken';
 
-// Define request types
-interface SignupRequest extends Request {
-  body: SignupData;
+// Define the request types
+interface LoginRequest extends Request {
+  body: {
+    email: string;
+    password: string;
+  };
 }
 
-interface LoginRequest extends Request {
-  body: LoginData;
+interface SignupRequest extends Request {
+  body: {
+    name: string;
+    email: string;
+    password: string;
+  };
 }
 
 interface VerifyEmailRequest extends Request {
@@ -29,7 +36,8 @@ export const signup = async (req: SignupRequest, res: Response) => {
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
+      res.status(400).json({ message: 'Email already registered' });
+      return;
     }
 
     // Hash password
@@ -64,20 +72,23 @@ export const verifyEmail = async (req: Request, res: Response) => {
     const { token } = req.query;
 
     if (!token) {
-      return res.status(400).json({ message: 'Verification token is required' });
+      res.status(400).json({ message: 'Verification token is required' });
+      return;
     }
 
     // Find the verification record
     const verification = await EmailVerification.findOne({ token });
 
     if (!verification) {
-      return res.status(400).json({ message: 'Invalid or expired verification token' });
+      res.status(400).json({ message: 'Invalid or expired verification token' });
+      return;
     }
 
     // Check if token is expired
     if (verification.expiresAt < new Date()) {
       await EmailVerification.deleteOne({ _id: verification._id });
-      return res.status(400).json({ message: 'Verification token has expired' });
+      res.status(400).json({ message: 'Verification token has expired' });
+      return;
     }
 
     // Update user
@@ -89,10 +100,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
     // Delete the verification record
     await EmailVerification.deleteOne({ _id: verification._id });
 
-    return res.status(200).json({ message: 'Email verified successfully' });
+    res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
     console.error('Email verification error:', error);
-    return res.status(500).json({ message: 'Error verifying email' });
+    res.status(500).json({ message: 'Error verifying email' });
   }
 };
 
@@ -103,18 +114,21 @@ export const login = async (req: LoginRequest, res: Response) => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      res.status(400).json({ message: 'Invalid credentials' });
+      return;
     }
 
     // Check if email is verified
     if (!user.emailVerified) {
-      return res.status(400).json({ message: 'Please verify your email first' });
+      res.status(400).json({ message: 'Please verify your email first' });
+      return;
     }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      res.status(400).json({ message: 'Invalid credentials' });
+      return;
     }
 
     // Generate JWT token
@@ -125,7 +139,7 @@ export const login = async (req: LoginRequest, res: Response) => {
     );
 
     res.json({
-      token, // Include the token in response
+      token,
       user: {
         id: user._id,
         name: user.name,
