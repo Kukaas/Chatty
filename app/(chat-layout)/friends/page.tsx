@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageSquare, Users, UserPlus, Clock, X, Menu } from 'lucide-react';
+import { MessageSquare, Users, UserPlus, Clock, X, Menu, Search } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -104,18 +104,26 @@ export default function FriendsPage() {
       <div className="flex-1 overflow-y-auto p-3 sm:p-6">
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Search Input */}
-          <form onSubmit={handleSearch} className="relative">
-            <Input
-              placeholder="Search people by name or email"
-              className="pl-4 pr-10 h-11 bg-neutral-50 border-0"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <form onSubmit={handleSearch} className="relative flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Search people by name or email"
+                className="pl-4 pr-10 h-11 bg-neutral-50 border-0"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <button 
+                type="submit"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors hidden sm:block"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+            </div>
             <button 
               type="submit"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+              className="sm:hidden h-11 w-11 bg-black text-white rounded-lg hover:bg-black/90 transition-colors flex items-center justify-center"
             >
-              <Users className="h-5 w-5" />
+              <Search className="h-5 w-5" />
             </button>
           </form>
 
