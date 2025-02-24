@@ -296,12 +296,22 @@ export default function ChatRoom() {
           </div>
         </div>
 
-        {/* Skeleton input */}
+        {/* Message Input - Now always visible and not in loading state */}
         <div className="p-4 border-t border-neutral-100 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-12 bg-neutral-100 rounded-lg animate-pulse" />
-            <div className="h-12 w-12 bg-neutral-100 rounded-lg animate-pulse" />
-          </div>
+          <form className="flex items-center gap-3">
+            <Input
+              disabled
+              placeholder="Type a message..."
+              className="flex-1 h-12 px-4 bg-neutral-100 border-0 focus-visible:ring-1 focus-visible:ring-black focus-visible:ring-offset-0 placeholder:text-neutral-400"
+            />
+            <Button 
+              disabled
+              size="icon"
+              className="h-12 w-12 bg-black text-white hover:bg-neutral-800 transition-colors disabled:opacity-50"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          </form>
         </div>
       </div>
     );

@@ -104,19 +104,30 @@ export const getFriends = async (req: AuthRequest, res: Response) => {
     .populate('requester recipient', 'name email avatar')
     .lean();
 
-    console.log('Found friends:', JSON.stringify(friends, null, 2));
-    
-    // Filter out any self-referential friendships
-    const validFriends = friends.filter(friend => {
-      const isSelfFriend = friend.requester._id.toString() === friend.recipient._id.toString();
-      if (isSelfFriend) {
-        console.log('Found self-friend, filtering out:', friend);
+    // Filter out duplicates and self-referential friendships
+    const uniqueFriends = friends.reduce((acc: any[], friend) => {
+      // Check for self-referential friendship
+      if (friend.requester._id.toString() === friend.recipient._id.toString()) {
+        return acc;
       }
-      return !isSelfFriend;
-    });
 
-    console.log('Filtered friends:', JSON.stringify(validFriends, null, 2));
-    res.json(validFriends);
+      // Check for duplicates
+      const exists = acc.find(f => 
+        f._id.toString() === friend._id.toString() ||
+        (f.requester._id.toString() === friend.requester._id.toString() && 
+         f.recipient._id.toString() === friend.recipient._id.toString()) ||
+        (f.requester._id.toString() === friend.recipient._id.toString() && 
+         f.recipient._id.toString() === friend.requester._id.toString())
+      );
+
+      if (!exists) {
+        acc.push(friend);
+      }
+      return acc;
+    }, []);
+
+    console.log('Filtered friends:', JSON.stringify(uniqueFriends, null, 2));
+    res.json(uniqueFriends);
   } catch (error) {
     console.error('Get friends error:', error);
     res.status(500).json({ message: 'Error getting friends' });

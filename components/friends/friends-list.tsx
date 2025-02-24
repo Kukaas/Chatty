@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageSquare, User } from "lucide-react";
 import { OnlineStatus } from '@/components/online-status';
+import { useSocket } from '@/hooks/useSocket';
 
 interface Friend {
   _id: string;
@@ -38,6 +39,7 @@ export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const { onlineUsers } = useSocket();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -74,6 +76,20 @@ export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
     return friend.requester._id === currentUser._id ? friend.recipient : friend.requester;
   };
 
+  // Sort friends by online status and name
+  const sortedFriends = [...friends].sort((a, b) => {
+    const aDetails = getFriendDetails(a);
+    const bDetails = getFriendDetails(b);
+    if (!aDetails || !bDetails) return 0;
+    
+    const aOnline = onlineUsers.has(aDetails._id);
+    const bOnline = onlineUsers.has(bDetails._id);
+    
+    if (aOnline && !bOnline) return -1;
+    if (!aOnline && bOnline) return 1;
+    return aDetails.name.localeCompare(bDetails.name);
+  });
+
   if (isLoadingData) {
     return (
       <div className="space-y-2">
@@ -104,66 +120,24 @@ export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
 
   return (
     <div className="space-y-1">
-      {friends.map(friend => {
+      {sortedFriends.map(friend => {
         const friendDetails = getFriendDetails(friend);
         if (!friendDetails) return null;
 
         const truncatedEmail = truncateEmail(friendDetails.email);
+        const isOnline = onlineUsers.has(friendDetails._id);
 
-        return renderFriend ? (
-          renderFriend({
-            ...friend,
-            recipient: {
-              ...friend.recipient,
-              email: friend.recipient._id === friendDetails._id ? truncatedEmail : friend.recipient.email
-            },
-            requester: {
-              ...friend.requester,
-              email: friend.requester._id === friendDetails._id ? truncatedEmail : friend.requester.email
-            }
-          })
-        ) : (
-          <div 
-            key={friend._id}
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-50"
-          >
-            <div className="relative">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={friendDetails.avatar} alt={friendDetails.name} />
-                <AvatarFallback>{friendDetails.name[0]}</AvatarFallback>
-              </Avatar>
-              <OnlineStatus 
-                userId={friendDetails._id} 
-                className="absolute bottom-0 right-0 ring-2 ring-white"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 mr-4">
-                  <h4 className="text-sm font-medium truncate hover:underline cursor-pointer">
-                    {friendDetails.name}
-                  </h4>
-                  <p className="text-xs text-neutral-500 hidden sm:block">
-                    <span className="hidden lg:block">{friendDetails.email}</span>
-                    <span className="sm:block lg:hidden">{truncatedEmail}</span>
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    className="p-2 hover:bg-neutral-100 rounded-lg text-neutral-500 hover:text-neutral-700 transition-colors"
-                  >
-                    <User className="h-4 w-4" />
-                  </button>
-                  <button
-                    className="p-2 bg-neutral-100 hover:bg-neutral-200 rounded-lg text-neutral-700 transition-colors"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+        return renderFriend({
+          ...friend,
+          recipient: {
+            ...friend.recipient,
+            email: friend.recipient._id === friendDetails._id ? truncatedEmail : friend.recipient.email
+          },
+          requester: {
+            ...friend.requester,
+            email: friend.requester._id === friendDetails._id ? truncatedEmail : friend.requester.email
+          }
+        });
       })}
     </div>
   );

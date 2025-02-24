@@ -10,6 +10,8 @@ import { useState } from 'react';
 import { UserProfileModal } from '@/components/users/user-profile-modal';
 import { User as UserType } from '@/types/user';
 import { Input } from "@/components/ui/input";
+import { OnlineStatus } from '@/components/online-status';
+import { useSocket } from '@/hooks/useSocket';
 
 interface Friend {
   _id: string;
@@ -34,6 +36,7 @@ export default function ConnectionsPage() {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { onlineUsers } = useSocket();
 
   const getFriendDetails = (friend: Friend) => {
     const currentUserId = localStorage.getItem('userId');
@@ -112,20 +115,32 @@ export default function ConnectionsPage() {
               isLoading={isLoading}
               renderFriend={(friend: Friend) => {
                 const friendDetails = getFriendDetails(friend);
+                const isOnline = onlineUsers.has(friendDetails._id);
                 
                 return (
                   <div 
                     key={friend._id} 
                     className="flex items-center gap-3 py-2 hover:bg-neutral-50"
                   >
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={friendDetails.avatar} />
-                      <AvatarFallback>{friendDetails.name?.[0]}</AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={friendDetails.avatar} />
+                        <AvatarFallback>{friendDetails.name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <OnlineStatus 
+                        userId={friendDetails._id} 
+                        className="absolute bottom-0 right-0 ring-2 ring-white"
+                      />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-medium truncate">{friendDetails.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-medium truncate">{friendDetails.name}</h4>
+                            <span className={`text-xs ${isOnline ? 'text-green-500' : 'text-neutral-400'}`}>
+                              • {isOnline ? 'online' : 'offline'}
+                            </span>
+                          </div>
                           <p className="text-xs text-neutral-500 truncate">{friendDetails.email}</p>
                         </div>
                         <div className="flex items-center gap-1">
