@@ -1,6 +1,6 @@
 'use client';
 
-import { MessageSquare, Users, UserPlus, Clock, X, Menu, Search } from 'lucide-react';
+import { MessageSquare, Users, UserPlus, Clock, X, Menu, Search, Check } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -30,6 +30,9 @@ export default function FriendsPage() {
   const [searchResults, setSearchResults] = useState<SearchResult>({ users: [] });
   const [isSearching, setIsSearching] = useState(false);
 
+  // Add this new state to track sent requests
+  const [sentRequests, setSentRequests] = useState<Record<string, 'sent' | 'pending'>>({});
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -42,7 +45,23 @@ export default function FriendsPage() {
     try {
       const response = await fetch(`/api/users/search?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
-      setSearchResults({ users: Array.isArray(data) ? data : [] });
+      
+      // When we get search results, for each user with a pending status where the current user is the requester,
+      // we should update our sentRequests state to show the correct UI
+      const users = Array.isArray(data) ? data : [];
+      
+      // Update the sent requests state for any pending requests
+      const pendingRequests: Record<string, 'pending'> = {};
+      users.forEach(user => {
+        if (user.friendshipStatus === 'pending' && user.isRequester) {
+          pendingRequests[user._id] = 'pending';
+        }
+      });
+      
+      // Set pending requests in our local state
+      setSentRequests(prev => ({...prev, ...pendingRequests}));
+      
+      setSearchResults({ users });
     } catch (error) {
       setSearchResults({ users: [] });
     } finally {
@@ -55,6 +74,7 @@ export default function FriendsPage() {
       let endpoint = '/api/friends';
       let body = {};
 
+      // Configure the endpoint and body based on action
       switch (action) {
         case 'add':
           endpoint += '?type=request';
@@ -77,12 +97,82 @@ export default function FriendsPage() {
         body: JSON.stringify(body),
       });
 
-      if (!response.ok) throw new Error('Failed to process friend action');
+      const data = await response.json();
 
-      // Refresh the search results
-      handleSearch(new Event('submit') as any);
+      if (!response.ok) {
+        // Handle different error cases
+        switch (response.status) {
+          case 400:
+            if (data.status === 'accepted') {
+              toast.error('You are already friends with this user');
+              // Update the UI to show as friends
+              setSearchResults(prev => ({
+                ...prev,
+                users: prev.users.map(u => 
+                  u._id === user._id 
+                    ? {...u, friendshipStatus: 'accepted'} 
+                    : u
+                )
+              }));
+            } else if (data.status === 'pending') {
+              toast.error('A friend request already exists');
+              // Update the UI to show as pending
+              setSearchResults(prev => ({
+                ...prev,
+                users: prev.users.map(u => 
+                  u._id === user._id 
+                    ? {...u, friendshipStatus: 'pending', isRequester: true} 
+                    : u
+                )
+              }));
+            } else {
+              toast.error(data.message || 'Failed to process friend action');
+            }
+            break;
+          case 404:
+            toast.error('User or friend request not found');
+            break;
+          case 401:
+            toast.error('Please log in to manage friend requests');
+            break;
+          case 503:
+            toast.error('Could not connect to the backend server. Please ensure it is running.');
+            break;
+          default:
+            toast.error(data.message || 'Failed to process friend action');
+        }
+        return;
+      }
+
+      // Only on success, update the UI
+      if (action === 'add') {
+        // Show checkmark/sent state temporarily
+        setSentRequests(prev => ({...prev, [user._id]: 'sent'}));
+        
+        // After 1 second, change to pending state
+        setTimeout(() => {
+          setSentRequests(prev => ({...prev, [user._id]: 'pending'}));
+          
+          // Update the search results to reflect the pending status
+          setSearchResults(prev => ({
+            ...prev,
+            users: prev.users.map(u => 
+              u._id === user._id 
+                ? {...u, friendshipStatus: 'pending', isRequester: true, friendshipId: data.request?._id} 
+                : u
+            )
+          }));
+        }, 1000);
+      } else {
+        // For other actions, refresh results to get updated statuses
+        handleSearch(new Event('submit') as any);
+      }
+
+      toast.success(`Friend request ${action === 'add' ? 'sent' : action}ed successfully`);
+      
     } catch (error) {
       console.error('Friend action error:', error);
+      toast.error('Failed to process friend action. Please try again.');
     }
   };
 
@@ -184,15 +274,28 @@ export default function FriendsPage() {
                         <MessageSquare className="h-4 w-4" />
                         <span className="hidden sm:inline">Message</span>
                       </button>
-                    ) : user.friendshipStatus === 'pending' ? (
-                      user.isRequester ? (
+                    ) : user.friendshipStatus === 'pending' || sentRequests[user._id] ? (
+                      user.isRequester || sentRequests[user._id] ? (
                         <button 
-                          onClick={() => handleFriendAction(user, 'cancel')}
                           className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 text-neutral-500 rounded-lg hover:bg-neutral-200 flex-shrink-0"
                         >
-                          <Clock className="h-4 w-4" />
-                          <span className="hidden sm:inline">Pending</span>
-                          <X className="h-4 w-4 sm:ml-1" />
+                          {sentRequests[user._id] === 'sent' ? (
+                            <Check className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Clock className="h-4 w-4" />
+                          )}
+                          <span className="hidden sm:inline">
+                            {sentRequests[user._id] === 'sent' ? 'Sent' : 'Pending'}
+                          </span>
+                          {(user.friendshipStatus === 'pending' && !sentRequests[user._id]) && (
+                            <X 
+                              className="h-4 w-4 sm:ml-1" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFriendAction(user, 'cancel');
+                              }}
+                            />
+                          )}
                         </button>
                       ) : (
                         <div className="flex gap-2 flex-shrink-0">

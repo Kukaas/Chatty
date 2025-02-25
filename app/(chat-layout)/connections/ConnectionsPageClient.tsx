@@ -12,6 +12,7 @@ import { User as UserType } from '@/types/user';
 import { Input } from "@/components/ui/input";
 import { OnlineStatus } from '@/components/online-status';
 import { useSocket } from '@/hooks/useSocket';
+import { toast } from "sonner";
 
 interface Friend {
   _id: string;
@@ -71,12 +72,42 @@ export default function ConnectionsPageClient() {
         body: JSON.stringify(body),
       });
 
-      if (!response.ok) throw new Error('Failed to process friend action');
+      const data = await response.json();
 
+      if (!response.ok) {
+        // Handle different error cases
+        switch (response.status) {
+          case 400:
+            if (data.status === 'accepted') {
+              toast.error('You are already friends with this user');
+            } else if (data.status === 'pending') {
+              toast.error('A friend request already exists');
+            } else {
+              toast.error(data.message || 'Failed to process friend action');
+            }
+            break;
+          case 404:
+            toast.error('User or friend request not found');
+            break;
+          case 401:
+            toast.error('Please log in to manage friend requests');
+            break;
+          case 503:
+            toast.error('Could not connect to the backend server. Please ensure it is running.');
+            break;
+          default:
+            toast.error(data.message || 'Failed to process friend action');
+        }
+        return;
+      }
+
+      toast.success(`Friend ${action === 'add' ? 'request sent' : action === 'accept' ? 'request accepted' : action === 'reject' ? 'request rejected' : 'request canceled'}`);
+      
       // Refresh the page to show updated status
       router.refresh();
     } catch (error) {
       console.error('Friend action error:', error);
+      toast.error('Failed to process friend action. Please try again.');
     } finally {
       setIsLoading(false);
     }

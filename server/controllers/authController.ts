@@ -71,39 +71,43 @@ export const verifyEmail = async (req: Request, res: Response) => {
   try {
     const { token } = req.query;
 
-    if (!token) {
-      res.status(400).json({ message: 'Verification token is required' });
-      return;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ message: 'Verification token is required' });
     }
+
+    // Log for debugging
+    console.log('Verifying token:', token);
 
     // Find the verification record
     const verification = await EmailVerification.findOne({ token });
 
     if (!verification) {
-      res.status(400).json({ message: 'Invalid or expired verification token' });
-      return;
+      return res.status(400).json({ message: 'Invalid or expired verification token' });
     }
 
     // Check if token is expired
     if (verification.expiresAt < new Date()) {
       await EmailVerification.deleteOne({ _id: verification._id });
-      res.status(400).json({ message: 'Verification token has expired' });
-      return;
+      return res.status(400).json({ message: 'Verification token has expired' });
     }
 
     // Update user
-    await User.updateOne(
+    const updateResult = await User.updateOne(
       { _id: verification.userId },
-      { emailVerified: true }
+      { $set: { emailVerified: true } }
     );
+
+    if (!updateResult.matchedCount) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     // Delete the verification record
     await EmailVerification.deleteOne({ _id: verification._id });
 
-    res.status(200).json({ message: 'Email verified successfully' });
+    return res.status(200).json({ message: 'Email verified successfully' });
   } catch (error) {
     console.error('Email verification error:', error);
-    res.status(500).json({ message: 'Error verifying email' });
+    return res.status(500).json({ message: 'Error verifying email' });
   }
 };
 

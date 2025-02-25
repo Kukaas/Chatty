@@ -51,38 +51,58 @@ interface IUser {
 
 export const sendFriendRequest = async (req: AuthRequest, res: Response) => {
   try {
-    const { userId } = req.body;
+    const { userId, email } = req.body;
     const requesterId = req.user?.id;
 
     if (!requesterId) {
-      res.status(401).json({ message: 'Unauthorized' });
-      return;
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    if (requesterId === userId) {
-      res.status(400).json({ message: 'Cannot send friend request to yourself' });
-      return;
+    if (!userId && !email) {
+      return res.status(400).json({ message: 'Either userId or email is required' });
+    }
+
+    let recipientId = userId;
+
+    // If email is provided instead of userId, find the user by email
+    if (email) {
+      const recipient = await User.findOne({ email });
+      if (!recipient) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      recipientId = recipient._id;
+    }
+
+    if (requesterId === recipientId) {
+      return res.status(400).json({ message: 'Cannot send friend request to yourself' });
     }
 
     const existingRequest = await Friend.findOne({
       $or: [
-        { requester: requesterId, recipient: userId },
-        { requester: userId, recipient: requesterId }
+        { requester: requesterId, recipient: recipientId },
+        { requester: recipientId, recipient: requesterId }
       ]
     });
 
     if (existingRequest) {
-      res.status(400).json({ message: 'Friend request already exists' });
-      return;
+      return res.status(400).json({ 
+        message: 'Friend request already exists',
+        status: existingRequest.status 
+      });
     }
 
-    await Friend.create({
+    const newRequest = await Friend.create({
       requester: requesterId,
-      recipient: userId,
+      recipient: recipientId,
       status: 'pending'
     });
 
-    res.status(201).json({ message: 'Friend request sent successfully' });
+    await newRequest.populate('recipient', 'name email avatar');
+
+    res.status(201).json({ 
+      message: 'Friend request sent successfully',
+      request: newRequest
+    });
   } catch (error) {
     console.error('Send friend request error:', error);
     res.status(500).json({ message: 'Error sending friend request' });

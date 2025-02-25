@@ -10,7 +10,7 @@ const router = Router();
 // Auth routes
 router.post('/login', login);
 router.post('/signup', signup);
-router.get('/verify-email', verifyEmail);
+router.get('/verify-email', verifyEmail as any);
 
 // Protected route to get current user
 router.get('/me', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {

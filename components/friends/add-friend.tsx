@@ -24,15 +24,39 @@ export function AddFriend() {
         body: JSON.stringify({ email }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to send friend request');
+        // Handle different error cases
+        switch (response.status) {
+          case 400:
+            if (data.status === 'accepted') {
+              toast.error('You are already friends with this user');
+            } else if (data.status === 'pending') {
+              toast.error('A friend request already exists');
+            } else {
+              toast.error(data.message || 'Failed to send friend request');
+            }
+            break;
+          case 404:
+            toast.error('User not found');
+            break;
+          case 401:
+            toast.error('Please log in to send friend requests');
+            break;
+          case 503:
+            toast.error('Could not connect to the backend server. Please ensure it is running.');
+            break;
+          default:
+            toast.error(data.message || 'Failed to send friend request');
+        }
+        return;
       }
 
       toast.success('Friend request sent successfully');
       setEmail('');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to send friend request');
+      toast.error('Failed to send friend request. Please try again.');
     } finally {
       setLoading(false);
     }

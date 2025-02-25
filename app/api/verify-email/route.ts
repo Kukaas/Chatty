@@ -12,59 +12,53 @@ export async function GET(request: NextRequest) {
     if (!token) {
       return NextResponse.json(
         { message: 'Verification token is required' },
-        { 
-          status: 400,
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }
+        { status: 400 }
       );
     }
 
-    const response = await fetch(`${API_URL}/api/auth/verify-email?token=${token}`, {
+    // Updated URL to match the Express route
+    const verifyUrl = `${API_URL}/api/auth/verify-email?token=${token}`;
+    console.log('Verifying email with URL:', verifyUrl);
+
+    const response = await fetch(verifyUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
       },
-      cache: 'no-store'
+      cache: 'no-store',
     });
 
-    const data = await response.json();
-
-    // Create response headers
-    const headers = new Headers({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
+    // Log response details for debugging
+    console.log('Backend response status:', response.status);
+    
+    const textResponse = await response.text();
+    console.log('Raw response:', textResponse);
+    
+    let data;
+    try {
+      data = JSON.parse(textResponse);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response:', parseError);
+      return NextResponse.json(
+        { message: 'Invalid server response format' },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
       return NextResponse.json(
         { message: data.message || 'Verification failed' },
-        { 
-          status: response.status,
-          headers
-        }
+        { status: response.status }
       );
     }
 
-    return NextResponse.json(data, { headers });
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
     console.error('Email verification error:', error);
+    
     return NextResponse.json(
-      { message: 'Error verifying email' },
-      { 
-        status: 500,
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      }
+      { message: error instanceof Error ? error.message : 'Error verifying email' },
+      { status: 500 }
     );
   }
 } 

@@ -22,22 +22,33 @@ export async function GET(request: NextRequest) {
       endpoint += `/${type}`;
     }
 
-    const response = await fetch(endpoint, {
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
+    try {
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to fetch friends data');
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch friends data');
+      }
+
+      return NextResponse.json(data);
+    } catch (fetchError) {
+      // Handle connection errors specially
+      if (fetchError instanceof TypeError && fetchError.message.includes('fetch failed')) {
+        console.error('Backend connection error:', fetchError);
+        return NextResponse.json(
+          { message: 'Could not connect to the backend server. Please ensure it is running.' },
+          { status: 503 } // Service Unavailable
+        );
+      }
+      throw fetchError;
     }
-
-    return NextResponse.json(data);
-
   } catch (error) {
     console.error('Friends API error:', error);
     return NextResponse.json(
@@ -66,24 +77,32 @@ export async function POST(request: NextRequest) {
       endpoint += `/${type}`;
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store',
-    });
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+      });
 
-    const data = await response.json();
+      const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to process friend request');
+      // Return the response with the same status code and data from the backend
+      return NextResponse.json(data, { status: response.status });
+    } catch (fetchError) {
+      // Handle connection errors specially
+      if (fetchError instanceof TypeError && fetchError.message.includes('fetch failed')) {
+        console.error('Backend connection error:', fetchError);
+        return NextResponse.json(
+          { message: 'Could not connect to the backend server. Please ensure it is running.' },
+          { status: 503 } // Service Unavailable
+        );
+      }
+      throw fetchError;
     }
-
-    return NextResponse.json(data);
-
   } catch (error) {
     console.error('Friends API error:', error);
     return NextResponse.json(

@@ -20,31 +20,27 @@ function VerifyEmailContent() {
         return;
       }
 
-      // Add a small delay before making the request
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       const response = await fetch(`/api/verify-email?token=${token}`, {
+        method: 'GET',
         headers: {
+          'Accept': 'application/json',
           'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
+        },
+        cache: 'no-store',
       });
       
       const data = await response.json();
 
       if (response.ok) {
         setStatus('success');
-        setMessage(data.message || 'Email verified successfully');
+        setMessage(data.message);
         
-        // Set redirecting state
         setIsRedirecting(true);
         
-        // Add a longer delay before redirecting
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Reduced delay to 1.5 seconds for better UX
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
-        if (document.visibilityState === 'visible') {
-          router.push('/login');
-        }
+        router.push('/login');
       } else {
         throw new Error(data.message || 'Verification failed');
       }
