@@ -8,6 +8,8 @@ import authRoutes from './routes/authRoutes';
 import friendRoutes from './routes/friendRoutes';
 import userRoutes from './routes/userRoutes';
 import messageRoutes from './routes/messageRoutes';
+import socketRoutes from './routes/socketRoutes';
+import { Friend } from './models/Friend';
 
 dotenv.config();
 
@@ -54,6 +56,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/socket', socketRoutes);
 
 // MongoDB Connection with proper options
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatty', {
@@ -108,9 +111,12 @@ io.on('connection', (socket: Socket) => {
   console.log('A user connected');
 
   socket.on('identify', (userId: string) => {
-    console.log('User identified:', userId);
+    console.log('User identified with ID:', userId, 'Socket ID:', socket.id);
     onlineUsers.set(userId, socket.id);
     socket.join(userId); // Join a room with their user ID
+    
+    // Debug: Print the current online users map
+    console.log('Current online users:', Array.from(onlineUsers.entries()));
     
     // Broadcast to all connected clients that this user is online
     io.emit('user_status_change', { userId, status: 'online' });
@@ -158,6 +164,39 @@ io.on('connection', (socket: Socket) => {
       isTyping: false 
     });
   });
+
+  socket.on('friend_request_sent', async (data) => {
+    try {
+      const { requestId, recipientId } = data;
+      // Find the request and populate with requester details
+      const request = await Friend.findById(requestId)
+        .populate('requester', 'name email avatar')
+        .lean();
+        
+      if (request) {
+        // Emit to the recipient if they're online
+        const recipientSocketId = onlineUsers.get(recipientId);
+        if (recipientSocketId) {
+          io.to(recipientId).emit('friend_request_received', request);
+        }
+      }
+    } catch (error) {
+      console.error('Socket friend_request_sent error:', error);
+    }
+  });
+
+  socket.on('friend_request_response', async (data) => {
+    try {
+      const { requestId, requesterId } = data;
+      // Notify the requester that their request was handled
+      const requesterSocketId = onlineUsers.get(requesterId);
+      if (requesterSocketId) {
+        io.to(requesterId).emit('friend_request_updated', requestId);
+      }
+    } catch (error) {
+      console.error('Socket friend_request_response error:', error);
+    }
+  });
 });
 
 // Add a new endpoint to get online users
@@ -168,4 +207,22 @@ app.get('/api/users/online', (req, res) => {
 const PORT = process.env.PORT || 4000;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-}); 
+});
+
+// Add missing type definition
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    email: string;
+  };
+}
+
+// Export the socket and online users map for use in controllers
+export { io, onlineUsers };
+
+// Remove these functions from here since they should be in the friend controller
+// They're causing errors because they reference variables that don't exist in this context
+/*
+export const sendFriendRequest = async (req: AuthRequest, res: Response) => { ... }
+export const respondToFriendRequest = async (req: AuthRequest, res: Response) => { ... }
+*/ 

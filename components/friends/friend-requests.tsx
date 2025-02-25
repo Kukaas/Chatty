@@ -6,6 +6,7 @@ import { Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { UserProfileModal } from '@/components/users/user-profile-modal';
 import { User } from '@/types/user';
+import { useSocket } from '@/hooks/useSocket';
 
 interface FriendRequest {
   _id: string;
@@ -15,6 +16,9 @@ interface FriendRequest {
     email: string;
     avatar: string;
   };
+  recipient: string;
+  status: string;
+  createdAt?: string;
 }
 
 interface FriendRequestsProps {
@@ -25,10 +29,17 @@ export function FriendRequests({ isLoading }: FriendRequestsProps) {
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const { socket, pendingRequests: socketPendingRequests, setPendingRequests: setSocketPendingRequests } = useSocket();
 
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  useEffect(() => {
+    if (socketPendingRequests && socketPendingRequests.length > 0) {
+      setRequests(socketPendingRequests as unknown as FriendRequest[]);
+    }
+  }, [socketPendingRequests]);
 
   const fetchRequests = async () => {
     try {
@@ -37,6 +48,8 @@ export function FriendRequests({ isLoading }: FriendRequestsProps) {
       if (!response.ok) throw new Error('Failed to fetch requests');
       const data = await response.json();
       setRequests(data);
+      
+      setSocketPendingRequests(data);
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {
@@ -55,8 +68,13 @@ export function FriendRequests({ isLoading }: FriendRequestsProps) {
 
       if (!response.ok) throw new Error('Failed to process request');
       
+      const data = await response.json();
+      
       toast.success(`Friend request ${action}ed`);
-      fetchRequests();
+      
+      setRequests(prev => prev.filter(req => req._id !== requestId));
+      
+      setSocketPendingRequests(prev => prev.filter(req => req._id !== requestId));
     } catch (error) {
       toast.error('Failed to process request');
     }

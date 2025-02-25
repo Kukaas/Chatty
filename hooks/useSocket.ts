@@ -44,6 +44,19 @@ interface TypingStatus {
   isTyping: boolean;
 }
 
+interface FriendRequest {
+  _id: string;
+  requester: {
+    _id: string;
+    name: string;
+    email: string;
+    avatar: string;
+  };
+  recipient: string;
+  status: string;
+  createdAt?: string;
+}
+
 export function useSocket() {
   // Add SSR safety check
   const [isClient, setIsClient] = useState(false);
@@ -57,6 +70,7 @@ export function useSocket() {
   const [typingUsers, setTypingUsers] = useState<Map<string, TypingUser>>(new Map());
   const [currentUser, setCurrentUser] = useState<TypingUser | null>(null);
   const socket = useRef<Socket | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
 
   // Memoize the socket event handlers
   const sendMessage = useCallback((data: ChatMessage) => {
@@ -103,8 +117,16 @@ export function useSocket() {
         });
 
         socket.current.on('connect', () => {
+          console.log('Socket connected with ID:', socket.current?.id);
           setIsConnected(true);
-          socket.current?.emit('identify', user._id);
+          
+          // If we have a user, identify
+          if (user?._id) {
+            console.log('Identifying as user:', user._id);
+            socket.current?.emit('identify', user._id);
+          } else {
+            console.warn('No user ID available for socket identification');
+          }
         });
 
         socket.current.on('disconnect', () => {
@@ -143,6 +165,18 @@ export function useSocket() {
             return updated;
           });
         });
+
+        // New friend request received
+        socket.current.on('friend_request_received', (request) => {
+          console.log('Received friend request via socket:', request);
+          setPendingRequests(prev => [...prev, request]);
+        });
+
+        // Friend request accepted or rejected
+        socket.current.on('friend_request_updated', (requestId) => {
+          console.log('Friend request updated via socket:', requestId);
+          setPendingRequests(prev => prev.filter(request => request._id !== requestId));
+        });
       } catch (error) {
         console.error('Socket initialization error:', error);
       }
@@ -154,6 +188,8 @@ export function useSocket() {
       if (socket.current) {
         socket.current.disconnect();
       }
+      socket.current?.off('friend_request_received');
+      socket.current?.off('friend_request_updated');
     };
   }, [isClient]); // Add isClient to dependencies
 
@@ -169,6 +205,8 @@ export function useSocket() {
       onReceiveMessage: () => () => {},
       startTyping: () => {},
       stopTyping: () => {},
+      pendingRequests: [],
+      setPendingRequests: () => {},
     };
   }
 
@@ -194,5 +232,7 @@ export function useSocket() {
         user: currentUser
       });
     },
+    pendingRequests,
+    setPendingRequests,
   };
 } 

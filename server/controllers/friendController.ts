@@ -3,6 +3,7 @@ import { Friend } from '../models/Friend';
 import { User } from '../models/User';
 import mongoose from 'mongoose';
 import { AuthRequest } from '../types/auth';
+import { io, onlineUsers } from '../index';
 
 interface Friend {
   _id: string | mongoose.Types.ObjectId;
@@ -97,7 +98,16 @@ export const sendFriendRequest = async (req: AuthRequest, res: Response) => {
       status: 'pending'
     });
 
-    await newRequest.populate('recipient', 'name email avatar');
+    const populatedRequest = await Friend.findById(newRequest._id)
+      .populate('requester', 'name email avatar')
+      .lean();
+    
+    const recipientSocketId = onlineUsers.get(recipientId.toString());
+    console.log('Recipient socket ID:', recipientSocketId);
+    if (recipientSocketId) {
+      console.log('Emitting friend request to recipient');
+      io.to(recipientSocketId).emit('friend_request_received', populatedRequest);
+    }
 
     res.status(201).json({ 
       message: 'Friend request sent successfully',
@@ -132,6 +142,13 @@ export const respondToFriendRequest = async (req: AuthRequest, res: Response) =>
 
     friendRequest.status = status;
     await friendRequest.save();
+
+    const requesterSocketId = onlineUsers.get(friendRequest.requester.toString());
+    console.log('Requester socket ID:', requesterSocketId);
+    if (requesterSocketId) {
+      console.log('Emitting friend request update to requester');
+      io.to(requesterSocketId).emit('friend_request_updated', requestId);
+    }
 
     res.json(friendRequest);
   } catch (error) {

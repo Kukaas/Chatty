@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useSocket } from '@/hooks/useSocket';
 
 interface BottomMenuProps {
   onNavigate?: () => void;
@@ -19,10 +20,12 @@ export function BottomMenu({ onNavigate }: BottomMenuProps) {
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
+  const { socket, pendingRequests: socketPendingRequests } = useSocket();
 
-  // Fetch pending requests count
+  // Fetch pending requests count initially, then use socket updates
   useEffect(() => {
     const fetchPendingRequests = async () => {
+      
       try {
         const response = await fetch('/api/friends?type=requests');
         if (!response.ok) throw new Error('Failed to fetch requests');
@@ -35,11 +38,19 @@ export function BottomMenu({ onNavigate }: BottomMenuProps) {
 
     fetchPendingRequests();
     
-    // Optional: Set up an interval to periodically check for new requests
-    const interval = setInterval(fetchPendingRequests, 30000); // Check every 30 seconds
-    
-    return () => clearInterval(interval);
+    // We don't need the interval anymore since we're using sockets
+    // But you can keep it as a fallback if you want
   }, []);
+
+  // Update pending requests count whenever the socket data changes
+  useEffect(() => {
+    console.log('Socket connected:', socket?.connected);
+    console.log('Current pending requests from socket:', socketPendingRequests);
+    
+    if (socketPendingRequests) {
+      setPendingRequests(socketPendingRequests.length);
+    }
+  }, [socketPendingRequests, socket?.connected]);
 
   const handleLogout = async () => {
     try {
