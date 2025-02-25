@@ -60,7 +60,11 @@ export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
         ]);
 
         setCurrentUser(userData);
+        localStorage.setItem('userId', userData._id);
         setFriends(friendsData);
+        
+        console.log('Set current user:', userData._id);
+        console.log('Friends data:', friendsData);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -73,7 +77,10 @@ export function FriendsList({ isLoading, renderFriend }: FriendsListProps) {
 
   const getFriendDetails = (friend: Friend) => {
     if (!currentUser) return null;
-    return friend.requester._id === currentUser._id ? friend.recipient : friend.requester;
+    
+    const currentUserId = currentUser._id || localStorage.getItem('userId');
+    
+    return String(friend.requester._id) === String(currentUserId) ? friend.recipient : friend.requester;
   };
 
   // Sort friends by online status and name

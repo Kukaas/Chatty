@@ -41,7 +41,7 @@ export default function ConnectionsPageClient() {
 
   const getFriendDetails = (friend: Friend) => {
     const currentUserId = localStorage.getItem('userId');
-    return friend.requester._id === currentUserId ? friend.recipient : friend.requester;
+    return String(friend.requester._id) === String(currentUserId) ? friend.recipient : friend.requester;
   };
 
   const handleFriendAction = async (user: UserType, action: 'add' | 'accept' | 'reject' | 'cancel') => {
